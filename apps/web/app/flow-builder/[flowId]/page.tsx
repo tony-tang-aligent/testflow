@@ -43,6 +43,13 @@ function CanvasInner() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [violations, setViolations] = useState<GraphViolation[]>([]);
   const [publishing, setPublishing] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    status: string;
+    output?: unknown;
+    error?: string;
+    cause?: string;
+  } | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -215,6 +222,31 @@ function CanvasInner() {
     }
   }
 
+  // Runs whatever's currently PUBLISHED for this document type - not the
+  // draft being edited live. If you just changed something, Publish first or
+  // this tests the old version. Polls every 1.5s since Step Functions
+  // executions are async, same reasoning as the original validator's test-now.
+  async function handleTestFlow() {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const { executionArn } = await flowBuilderApi.testFlow(documentType, samplePayload ?? {});
+      const poll = async (): Promise<void> => {
+        const result = await flowBuilderApi.getExecutionStatus(executionArn);
+        if (result.status === 'RUNNING') {
+          setTimeout(poll, 1500);
+        } else {
+          setTestResult(result);
+          setTesting(false);
+        }
+      };
+      poll();
+    } catch (err) {
+      setTestResult({ status: 'FAILED', error: (err as Error).message });
+      setTesting(false);
+    }
+  }
+
   function openPayloadEditor() {
     setPayloadDraft(JSON.stringify(samplePayload ?? {}, null, 2));
     setEditingPayload(true);
@@ -279,6 +311,14 @@ function CanvasInner() {
               Save draft
             </button>
             <button
+                onClick={handleTestFlow}
+                disabled={testing}
+                title="Runs the currently PUBLISHED flow, not unpublished draft changes"
+                className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {testing ? 'Testing…' : 'Test flow'}
+            </button>
+            <button
                 onClick={handlePublish}
                 disabled={publishing}
                 className="rounded bg-gray-900 px-3.5 py-1.5 text-xs font-medium text-white disabled:opacity-50"
@@ -287,6 +327,28 @@ function CanvasInner() {
             </button>
           </div>
         </div>
+
+        {testResult && (
+            <div
+                className={`shrink-0 border-b px-5 py-2.5 text-xs ${
+                    testResult.status === 'SUCCEEDED'
+                        ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
+                        : 'border-red-100 bg-red-50 text-red-800'
+                }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Test run: {testResult.status}</span>
+                <button onClick={() => setTestResult(null)} className="text-gray-400 hover:text-gray-700">
+                  ✕
+                </button>
+              </div>
+              {(testResult.error || testResult.output) && (
+                  <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px]">
+              {testResult.error ? `${testResult.error}: ${testResult.cause}` : JSON.stringify(testResult.output, null, 2)}
+            </pre>
+              )}
+            </div>
+        )}
 
         <div className="flex min-h-0 flex-1">
           <NodePalette />

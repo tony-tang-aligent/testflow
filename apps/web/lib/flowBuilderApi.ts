@@ -24,18 +24,29 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const flowBuilderApi = {
   listDrafts: (documentType: string) =>
-    request<FlowGraph[]>(`/flow-drafts?documentType=${encodeURIComponent(documentType)}`),
+      request<FlowGraph[]>(`/flow-drafts?documentType=${encodeURIComponent(documentType)}`),
   createDraft: (documentType: string) =>
-    request<FlowGraph>('/flow-drafts', {
-      method: 'POST',
-      body: JSON.stringify({ documentType, nodes: [], edges: [] }),
-    }),
+      request<FlowGraph>('/flow-drafts', {
+        method: 'POST',
+        body: JSON.stringify({ documentType, nodes: [], edges: [] }),
+      }),
   getDraft: (flowId: string) => request<FlowGraph>(`/flow-drafts/${flowId}`),
   saveDraft: (flowId: string, graph: FlowGraph) =>
-    request<FlowGraph>(`/flow-drafts/${flowId}`, { method: 'PUT', body: JSON.stringify(graph) }),
+      request<FlowGraph>(`/flow-drafts/${flowId}`, { method: 'PUT', body: JSON.stringify(graph) }),
   publish: (flowId: string, graph: FlowGraph) =>
-    request<{ stateMachineArn: string; message: string }>(`/flow-drafts/${flowId}/publish`, {
-      method: 'POST',
-      body: JSON.stringify(graph),
-    }),
+      request<{ stateMachineArn: string; message: string }>(`/flow-drafts/${flowId}/publish`, {
+        method: 'POST',
+        body: JSON.stringify(graph),
+      }),
+  // Manual trigger - runs whatever's currently PUBLISHED for a document type,
+  // not the draft being edited. Publish first if you want to test changes.
+  testFlow: (documentType: string, payload: Record<string, unknown>) =>
+      request<{ executionArn: string }>('/test-flow', {
+        method: 'POST',
+        body: JSON.stringify({ documentType, payload }),
+      }),
+  getExecutionStatus: (executionArn: string) =>
+      request<{ status: string; output?: unknown; error?: string; cause?: string }>(
+          `/test-flow?executionArn=${encodeURIComponent(executionArn)}`,
+      ),
 };

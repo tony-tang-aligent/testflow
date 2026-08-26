@@ -89,7 +89,17 @@ export class FlowBuilderStack extends cdk.Stack {
         // the real deployed domain when this stack was first built, still
         // testing against localhost only at the time.
         allowOrigins: ['https://main.drud3wq7txj7c.amplifyapp.com', 'http://localhost:3000'],
-        allowMethods: [apigwv2.CorsHttpMethod.GET, apigwv2.CorsHttpMethod.POST, apigwv2.CorsHttpMethod.OPTIONS],
+        // PUT was missing here despite /flow-drafts/{flowId} actually
+        // supporting it (saveDraft() - called on every publish, not just
+        // explicit "Save draft" clicks). The route itself worked; only the
+        // preflight response never advertised PUT as allowed, so a browser
+        // would still block it even with the origin fixed.
+        allowMethods: [
+          apigwv2.CorsHttpMethod.GET,
+          apigwv2.CorsHttpMethod.POST,
+          apigwv2.CorsHttpMethod.PUT,
+          apigwv2.CorsHttpMethod.OPTIONS,
+        ],
         allowHeaders: ['content-type'],
       },
     });
@@ -108,6 +118,31 @@ export class FlowBuilderStack extends cdk.Stack {
       path: '/flow-drafts/{flowId}/publish',
       methods: [apigwv2.HttpMethod.POST],
       integration: new integrations.HttpLambdaIntegration('PublishIntegration', publishFlowFn),
+    });
+
+    // Manual trigger - Publish gets a flow live but there was never a way to
+    // actually run it against a test payload afterward. POST starts an
+    // execution against whatever's currently published for a document type;
+    // GET polls it by executionArn (query param, not a path param - ARNs
+    // contain ':' and '/' characters that don't URL-encode cleanly as path
+    // segments).
+    const testFlowFn = new lambda.NodejsFunction(this, 'TestPublishedFlowFn', {
+      entry: path.join(__dirname, '../lambda/testPublishedFlow/index.ts'),
+      runtime: Runtime.NODEJS_20_X,
+      timeout: cdk.Duration.seconds(10),
+      environment: { PUBLISHED_FLOW_TABLE_NAME: publishedFlowTable.tableName },
+    });
+    publishedFlowTable.grantReadData(testFlowFn);
+    testFlowFn.addToRolePolicy(
+        new iam.PolicyStatement({
+          actions: ['states:StartExecution', 'states:DescribeExecution'],
+          resources: ['*'], // execution ARNs aren't known until StartExecution returns one - can't scope tighter than the account/region here
+        }),
+    );
+    httpApi.addRoutes({
+      path: '/test-flow',
+      methods: [apigwv2.HttpMethod.POST, apigwv2.HttpMethod.GET],
+      integration: new integrations.HttpLambdaIntegration('TestFlowIntegration', testFlowFn),
     });
 
     new cdk.CfnOutput(this, 'FlowBuilderApiUrl', { value: httpApi.apiEndpoint });
