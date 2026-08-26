@@ -342,7 +342,7 @@ function CanvasInner() {
                   ✕
                 </button>
               </div>
-              {(testResult.error || testResult.output) && (
+              {Boolean(testResult.error || testResult.output) && (
                   <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px]">
               {testResult.error ? `${testResult.error}: ${testResult.cause}` : JSON.stringify(testResult.output, null, 2)}
             </pre>
