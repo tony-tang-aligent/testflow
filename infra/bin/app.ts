@@ -24,7 +24,7 @@ const env = { region: 'ap-southeast-2' };
 
 // TODO: replace with real per-client deploy config (CI parameter, config file, or
 // eventually a row in the RDS company table once that exists).
-const clientName = 'your-client-name';
+const clientName = 'portalink';
 
 const orderValidatorCore = new OrderValidatorStack(app, `OrderValidator-${clientName}`, {
   clientName,

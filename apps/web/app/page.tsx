@@ -1,12 +1,12 @@
 // apps/web/app/page.tsx
 //
-// Root redirects to the Client picker - matches Zapier/Shopify Flow's own
-// behavior (you land on your list of workflows, not a marketing dashboard).
-// A user with access to exactly one Client skips straight past this to their
-// flows (see app/clients/page.tsx) - this redirect is just the entry point.
+// Root redirects to the Flow Builder dashboard - the new canvas/compiler
+// system, which has no dependency on Aurora/Cognito/the SSR compute role at
+// all (unlike /clients, which needs those and can crash if they're not
+// configured). This is the reliable default entry point.
 
 import { redirect } from 'next/navigation';
 
 export default function RootPage() {
-  redirect('/clients');
+  redirect('/flow-builder');
 }

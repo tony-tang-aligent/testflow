@@ -58,13 +58,13 @@ export class FlowBuilderStack extends cdk.Stack {
     });
     publishedFlowTable.grantReadWriteData(publishFlowFn);
     publishFlowFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ['states:CreateStateMachine', 'states:UpdateStateMachine', 'states:DescribeStateMachine'],
-        resources: ['*'],
-      }),
+        new iam.PolicyStatement({
+          actions: ['states:CreateStateMachine', 'states:UpdateStateMachine', 'states:DescribeStateMachine'],
+          resources: ['*'],
+        }),
     );
     publishFlowFn.addToRolePolicy(
-      new iam.PolicyStatement({ actions: ['iam:PassRole'], resources: [flowStateMachineRole.roleArn] }),
+        new iam.PolicyStatement({ actions: ['iam:PassRole'], resources: [flowStateMachineRole.roleArn] }),
     );
 
     const draftFn = new lambda.NodejsFunction(this, 'FlowDraftFn', {
@@ -85,7 +85,10 @@ export class FlowBuilderStack extends cdk.Stack {
     // with a broken mechanism instead.
     const httpApi = new apigwv2.HttpApi(this, 'FlowBuilderApi', {
       corsPreflight: {
-        allowOrigins: ['http://localhost:3000'],
+        // Matches api-stack.ts's CORS config - was never updated to include
+        // the real deployed domain when this stack was first built, still
+        // testing against localhost only at the time.
+        allowOrigins: ['https://main.drud3wq7txj7c.amplifyapp.com', 'http://localhost:3000'],
         allowMethods: [apigwv2.CorsHttpMethod.GET, apigwv2.CorsHttpMethod.POST, apigwv2.CorsHttpMethod.OPTIONS],
         allowHeaders: ['content-type'],
       },
