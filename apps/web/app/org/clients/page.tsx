@@ -2,9 +2,10 @@
 //
 // Org-admin surface, deferred from the original identity-layer build and
 // genuinely missing until now - not drift, an actual gap. Mirrors
-// /admin/organizations' pattern exactly, but scoped to the one org this
-// person administers, rather than platform-admin's every-org view.
-
+// /admin/organizations' pattern exactly, but scoped to one org, rather than
+// platform-admin's every-org view. A platform-admin can now ALSO reach this
+// page for any specific org via ?orgId=... (that's what makes the org rows
+// on /admin/organizations actually clickable, rather than dead <div>s).
 
 // Forces this page to render fresh on every request, at runtime, never as a build-time
 // static file - without this, Next.js pre-renders it once at BUILD time (when no SSR
@@ -13,17 +14,22 @@
 export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 import { getAuthorizationContext } from '@workspace/auth/server';
-import { createDb, dbConfigFromEnv, createClient, clients } from '@workspace/db';
+import { createDb, dbConfigFromEnv, createClient, clients, organizations } from '@workspace/db';
 import { eq } from 'drizzle-orm';
 import { isDevBypassActive, warnBypass } from '@workspace/auth/devBypass';
 
-export default async function OrgClientsPage() {
+export default async function OrgClientsPage({
+                                                 searchParams,
+                                             }: {
+    searchParams?: { orgId?: string };
+}) {
     const authz = await getAuthorizationContext();
     if (!authz) redirect('/auth/signin');
 
-    const adminOrg = authz.organizations.find((o) => o.role === 'admin');
-    if (!authz.isPlatformAdmin && !adminOrg) redirect('/');
+    const ownAdminOrg = authz.organizations.find((o) => o.role === 'admin');
+    if (!authz.isPlatformAdmin && !ownAdminOrg) redirect('/');
 
     if (isDevBypassActive()) {
         warnBypass('app/org/clients/page.tsx');
@@ -38,7 +44,17 @@ export default async function OrgClientsPage() {
         );
     }
 
-    if (!adminOrg) {
+    const db = createDb(dbConfigFromEnv());
+
+    // Platform-admins can view ANY org via ?orgId=... (from clicking a row on
+    // /admin/organizations); everyone else only ever sees their own admin org.
+    let targetOrg: { organizationId: string; organizationName: string } | undefined = ownAdminOrg;
+    if (authz.isPlatformAdmin && searchParams?.orgId) {
+        const org = await db.query.organizations.findFirst({ where: eq(organizations.id, searchParams.orgId) });
+        if (org) targetOrg = { organizationId: org.id, organizationName: org.name };
+    }
+
+    if (!targetOrg) {
         return (
             <div className="mx-auto max-w-2xl p-6">
                 <h1 className="mb-1 text-lg font-medium">Clients</h1>
@@ -47,28 +63,31 @@ export default async function OrgClientsPage() {
                     <Link href="/admin/organizations" className="underline">
                         Admin
                     </Link>{' '}
-                    for the full cross-org view instead.
+                    and click an organization to view its clients instead.
                 </p>
             </div>
         );
     }
 
-    const db = createDb(dbConfigFromEnv());
-    const orgClients = await db.select().from(clients).where(eq(clients.organizationId, adminOrg.organizationId));
+    const orgClients = await db.select().from(clients).where(eq(clients.organizationId, targetOrg.organizationId));
 
     async function handleCreate(formData: FormData) {
         'use server';
         const name = String(formData.get('name') ?? '').trim();
         const tenantId = String(formData.get('tenantId') ?? '').trim();
-        if (!name || !tenantId) return;
+        if (!name || !tenantId || !targetOrg) return;
         const db = createDb(dbConfigFromEnv());
-        await createClient(db, adminOrg!.organizationId, name, tenantId);
+        await createClient(db, targetOrg.organizationId, name, tenantId);
+        // Same missing-revalidation bug as /admin/organizations had - without
+        // this, the new client existed in the DB but never showed up until some
+        // unrelated navigation happened to bust the page's cached render.
+        revalidatePath('/org/clients');
     }
 
     return (
         <div className="mx-auto max-w-2xl p-6">
             <h1 className="mb-1 text-lg font-medium">Clients</h1>
-            <p className="mb-6 text-sm text-gray-500">{adminOrg.organizationName}</p>
+            <p className="mb-6 text-sm text-gray-500">{targetOrg.organizationName}</p>
 
             <form action={handleCreate} className="mb-6 space-y-2 rounded-lg border border-gray-200 bg-white p-4">
                 <div className="flex gap-2">

@@ -12,6 +12,8 @@
 // that frozen result forever afterward regardless of runtime fixes.
 export const dynamic = 'force-dynamic';
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
+import Link from 'next/link';
 import { getAuthorizationContext } from '@workspace/auth/server';
 import { createDb, dbConfigFromEnv, createOrganization, organizations } from '@workspace/db';
 import { isDevBypassActive, warnBypass } from '@workspace/auth/devBypass';
@@ -46,6 +48,11 @@ export default async function OrganizationsPage() {
         if (!name) return;
         const db = createDb(dbConfigFromEnv());
         await createOrganization(db, name);
+        // Missing before - the org WAS being created, but this page's cached
+        // render never knew to refetch, so it looked like nothing happened until
+        // some unrelated navigation happened to bust the cache. This is what
+        // actually makes the new org show up immediately.
+        revalidatePath('/admin/organizations');
     }
 
     return (
@@ -65,10 +72,14 @@ export default async function OrganizationsPage() {
 
             <div className="space-y-2">
                 {orgs.map((org) => (
-                    <div key={org.id} className="rounded border border-gray-200 bg-white px-4 py-3">
+                    <Link
+                        key={org.id}
+                        href={`/org/clients?orgId=${org.id}`}
+                        className="block rounded border border-gray-200 bg-white px-4 py-3 hover:border-gray-300 hover:shadow-sm"
+                    >
                         <div className="text-sm font-medium">{org.name}</div>
                         <div className="text-xs text-gray-400">{org.id}</div>
-                    </div>
+                    </Link>
                 ))}
             </div>
         </div>
