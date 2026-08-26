@@ -145,6 +145,21 @@ export class FlowBuilderStack extends cdk.Stack {
       integration: new integrations.HttpLambdaIntegration('TestFlowIntegration', testFlowFn),
     });
 
+    // Which draft (if any) matches what's actually live - the dashboard was
+    // previously listing drafts with zero indication of which one is real.
+    const publishedFlowLookupFn = new lambda.NodejsFunction(this, 'PublishedFlowLookupFn', {
+      entry: path.join(__dirname, '../api/handlers/publishedFlow.ts'),
+      runtime: Runtime.NODEJS_20_X,
+      timeout: cdk.Duration.seconds(10),
+      environment: { PUBLISHED_FLOW_TABLE_NAME: publishedFlowTable.tableName },
+    });
+    publishedFlowTable.grantReadData(publishedFlowLookupFn);
+    httpApi.addRoutes({
+      path: '/document-types/{documentType}/published',
+      methods: [apigwv2.HttpMethod.GET],
+      integration: new integrations.HttpLambdaIntegration('PublishedFlowLookupIntegration', publishedFlowLookupFn),
+    });
+
     new cdk.CfnOutput(this, 'FlowBuilderApiUrl', { value: httpApi.apiEndpoint });
   }
 }
