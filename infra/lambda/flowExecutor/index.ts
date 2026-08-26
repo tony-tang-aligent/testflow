@@ -1,12 +1,13 @@
 // infra/lambda/flowExecutor/index.ts
 //
-// One Lambda for every node type - the compiler wires every Task state to
-// this same function, passing {nodeId, nodeType, config}. This is what makes
-// adding a node type (including a trusted partner's, per spec §8) additive:
-// one more case here (or, for a partner's own Lambda, a registry entry
-// pointing at THEIR function instead of this one - see nodeRegistry.ts's
-// executorArn field, not used by this file directly but the mechanism this
-// file is one instance of).
+// The DEFAULT executor - handles every built-in node type via the switch
+// below, but is no longer the only possible executor. A node type in
+// nodeRegistry.ts can set its own executorArn to route to a completely
+// different Lambda instead (a trusted partner's marketplace node, per spec
+// §8) - the compiler embeds that ARN directly into the compiled Task state,
+// bypassing this function entirely for that node type. This file only ever
+// runs for node types that leave executorArn unset, which is every built-in
+// type as of writing, but won't necessarily stay that way.
 //
 // errorAggregator collects from two sources: $.checkResults (top-level checks,
 // each keyed by nodeId so siblings don't overwrite each other - see
@@ -23,12 +24,12 @@ interface ExecutorEvent {
 function getPath(obj: unknown, path: string): unknown {
   if (!path) return obj;
   return path
-    .split(/[.[\]]/)
-    .filter(Boolean)
-    .reduce<unknown>((acc, key) => {
-      if (acc == null) return undefined;
-      return (acc as Record<string, unknown>)[key];
-    }, obj);
+      .split(/[.[\]]/)
+      .filter(Boolean)
+      .reduce<unknown>((acc, key) => {
+        if (acc == null) return undefined;
+        return (acc as Record<string, unknown>)[key];
+      }, obj);
 }
 
 function interpolate(template: string, item: Record<string, unknown>): string {
@@ -66,8 +67,8 @@ function runCheck(config: Record<string, unknown>, item: Record<string, unknown>
   return {
     passed,
     violation: passed
-      ? undefined
-      : { fieldPath: config.fieldPath, rule: config.rule, expected: compareValue, actual: value },
+        ? undefined
+        : { fieldPath: config.fieldPath, rule: config.rule, expected: compareValue, actual: value },
   };
 }
 
@@ -89,7 +90,7 @@ async function runAction(nodeType: string, config: Record<string, unknown>, item
     case 'httpCall': {
       const url = interpolate(String(config.url ?? ''), item);
       await fetch(url, { method: (config.method as string) ?? 'GET' }).catch((err) =>
-        console.error('httpCall action failed (fire-and-forget, not retried):', err),
+          console.error('httpCall action failed (fire-and-forget, not retried):', err),
       );
       return;
     }
@@ -129,8 +130,8 @@ export const handler = async (event: ExecutorEvent) => {
       };
       const fromIteration = (state.iterationResults ?? []).map((r) => r.violation).filter(Boolean);
       const fromTopLevel = Object.values(state.checkResults ?? {})
-        .map((r) => r.violation)
-        .filter(Boolean);
+          .map((r) => r.violation)
+          .filter(Boolean);
       const violations = [...fromTopLevel, ...fromIteration];
       return { violations, status: violations.length > 0 ? 'failed' : 'passed' };
     }

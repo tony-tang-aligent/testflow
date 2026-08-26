@@ -22,11 +22,13 @@ import { flowBuilderApi } from '../../../lib/flowBuilderApi';
 import { NodePalette } from '../../../components/flow-builder/NodePalette';
 import { NodeConfigPanel } from '../../../components/flow-builder/NodeConfigPanel';
 import { FlowNodeCard, FlowNodeCardData } from '../../../components/flow-builder/FlowNodeCard';
+import { DeletableEdge, DeletableEdgeData } from '../../../components/edges/DeletableEdge';
 import { SidePanel } from '../../../components/SidePanel';
 
 const nodeTypes = {
   flowNode: ({ data }: { data: FlowNodeCardData }) => <FlowNodeCard data={data} />,
 };
+const edgeTypes = { deletable: DeletableEdge };
 
 function CanvasInner() {
   const params = useParams<{ flowId: string }>();
@@ -52,6 +54,10 @@ function CanvasInner() {
       (n: Node<FlowNodeCardData>): Node<FlowNodeCardData> => ({
         ...n,
         type: 'flowNode',
+        // Top-level ReactFlow field, not just data.selected (used for card
+        // styling) - without this, ReactFlow's own keyboard-delete handling has
+        // nothing to act on, since it looks at this field, not custom data.
+        selected: n.id === selectedId,
         data: {
           ...n.data,
           selected: n.id === selectedId,
@@ -85,6 +91,8 @@ function CanvasInner() {
                 source: e.source,
                 target: e.target,
                 sourceHandle: e.sourceHandle === 'default' ? undefined : e.sourceHandle,
+                type: 'deletable',
+                data: { onDelete: deleteEdge },
                 style:
                     e.sourceHandle === 'false'
                         ? { stroke: '#EF4444' }
@@ -117,6 +125,10 @@ function CanvasInner() {
     setSelectedId(null);
   }
 
+  function deleteEdge(edgeId: string) {
+    setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+  }
+
   function onConnect(connection: Connection) {
     const style =
         connection.sourceHandle === 'false'
@@ -124,7 +136,7 @@ function CanvasInner() {
             : connection.sourceHandle === 'true'
                 ? { stroke: '#22C55E' }
                 : undefined;
-    setEdges((eds) => addEdge({ ...connection, style }, eds));
+    setEdges((eds) => addEdge({ ...connection, type: 'deletable', data: { onDelete: deleteEdge }, style }, eds));
   }
 
   function onDrop(e: React.DragEvent) {
@@ -298,6 +310,7 @@ function CanvasInner() {
                 onNodeClick={(_, n) => setSelectedId(n.id)}
                 onPaneClick={() => setSelectedId(null)}
                 nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
                 fitView
             >
               <Background color="#E4E7EC" gap={20} />

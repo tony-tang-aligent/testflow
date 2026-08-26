@@ -19,7 +19,15 @@ export interface CompileResult {
   definition?: { StartAt: string; States: Record<string, AslState> };
 }
 
-const EXECUTOR_LAMBDA_ARN_PLACEHOLDER = '${FlowNodeExecutorArn}'; // substituted by the publish Lambda at deploy time
+const EXECUTOR_LAMBDA_ARN_PLACEHOLDER = '${FlowNodeExecutorArn}'; // substituted by the publish Lambda at deploy time, for node types with no executorArn of their own
+
+/** A registered node type's own executorArn (a partner's marketplace Lambda,
+ * already a known, real ARN at registry-definition time) is embedded
+ * directly - only types with none set fall back to the shared default
+ * executor's placeholder, substituted later by publishFlow.ts. */
+function resourceArnFor(nodeType: string): string {
+  return getNodeType(nodeType).executorArn ?? EXECUTOR_LAMBDA_ARN_PLACEHOLDER;
+}
 
 function nodeById(graph: FlowGraph, id: string): FlowNode {
   const node = graph.nodes.find((n) => n.id === id);
@@ -46,10 +54,10 @@ function nestedChainNodeIds(graph: FlowGraph, repeatNodeId: string): Set<string>
 }
 
 function compileChain(
-  graph: FlowGraph,
-  startNodeId: string,
-  states: Record<string, AslState>,
-  boundaryNodeIds?: Set<string>,
+    graph: FlowGraph,
+    startNodeId: string,
+    states: Record<string, AslState>,
+    boundaryNodeIds?: Set<string>,
 ): string {
   const node = nodeById(graph, startNodeId);
   if (states[node.id]) return node.id;
@@ -87,7 +95,7 @@ function compileChain(
 
       states[node.id] = {
         Type: 'Task',
-        Resource: EXECUTOR_LAMBDA_ARN_PLACEHOLDER,
+        Resource: resourceArnFor(node.type),
         Parameters: { nodeId: node.id, nodeType: node.type, config: node.config, 'item.$': '$$.Execution.Input' },
         ResultPath: resultKey,
         Next: failEdge ? taskName + '_Choice' : (continueName ?? taskName),
@@ -111,12 +119,12 @@ function compileChain(
       const firstNested = outgoing(graph, node.id)[0];
       const itemProcessorStates: Record<string, AslState> = {};
       const itemStart = firstNested
-        ? compileChain(graph, firstNested.target, itemProcessorStates, nestedIds)
-        : undefined;
+          ? compileChain(graph, firstNested.target, itemProcessorStates, nestedIds)
+          : undefined;
 
       const resumeEdge = [...nestedIds]
-        .flatMap((id) => outgoing(graph, id))
-        .find((e) => !nestedIds.has(e.target));
+          .flatMap((id) => outgoing(graph, id))
+          .find((e) => !nestedIds.has(e.target));
       const resumeName = resumeEdge ? compileChain(graph, resumeEdge.target, states, boundaryNodeIds) : undefined;
 
       states[node.id] = {
@@ -137,7 +145,7 @@ function compileChain(
       const nextName = next ? compileChain(graph, next.target, states, boundaryNodeIds) : undefined;
       states[node.id] = {
         Type: 'Task',
-        Resource: EXECUTOR_LAMBDA_ARN_PLACEHOLDER,
+        Resource: resourceArnFor(node.type),
         Parameters: { nodeId: node.id, nodeType: node.type, 'item.$': '$$.Execution.Input' },
         ResultPath: '$.aggregatedResult',
         ...(nextName ? { Next: nextName } : { End: true }),
@@ -147,9 +155,9 @@ function compileChain(
 
     case 'workflowResult': {
       states[node.id] =
-        node.config.returnResult === 'failed'
-          ? { Type: 'Fail', Error: 'ValidationFailed', Cause: 'One or more checks failed.' }
-          : { Type: 'Succeed' };
+          node.config.returnResult === 'failed'
+              ? { Type: 'Fail', Error: 'ValidationFailed', Cause: 'One or more checks failed.' }
+              : { Type: 'Succeed' };
       return node.id;
     }
 
@@ -157,7 +165,7 @@ function compileChain(
       if (def.category !== 'action') throw new Error(`Compiler: unhandled node type ${node.type}`);
       states[node.id] = {
         Type: 'Task',
-        Resource: EXECUTOR_LAMBDA_ARN_PLACEHOLDER,
+        Resource: resourceArnFor(node.type),
         Parameters: { nodeId: node.id, nodeType: node.type, config: node.config, 'item.$': '$$.Execution.Input' },
         End: true,
       };

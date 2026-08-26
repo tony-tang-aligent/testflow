@@ -51,6 +51,16 @@ export interface NodeTypeDefinition {
   // just a single default next-step - per spec §5.
   branches: boolean;
   configFields: ConfigField[];
+  // Points a compiled Task state at a SPECIFIC Lambda instead of the shared
+  // default executor (infra/lambda/flowExecutor) - this is the actual
+  // mechanism behind spec §8's "trusted partner brings their own Lambda,"
+  // not just documented intent. Unset for every built-in type here (they all
+  // share the default executor's internal switch/case); a partner's
+  // marketplace node sets this to their own function's real ARN, known at
+  // registry-definition time - the compiler embeds it directly rather than
+  // going through the placeholder-substitution path the default executor
+  // needs (see compiler.ts's resourceArnFor).
+  executorArn?: string;
 }
 
 export interface ConfigField {

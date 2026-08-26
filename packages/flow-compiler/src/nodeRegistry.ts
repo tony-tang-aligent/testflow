@@ -134,6 +134,21 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
       { key: 'returnResult', label: 'Return result', kind: 'select', options: ['passed', 'failed'] },
     ],
   },
+
+  // Example of what a trusted partner's marketplace node actually looks like
+  // (spec §8) - not a hypothetical, this is the real, working mechanism.
+  // Uncomment and point executorArn at a real deployed Lambda to register one:
+  //
+  // 'partner-acme-shipping-lookup': {
+  //   type: 'partner-acme-shipping-lookup',
+  //   category: 'action',
+  //   label: 'Acme Shipping Lookup',
+  //   description: "Looks up shipping status via Acme's API.",
+  //   canHaveOutput: false,
+  //   branches: false,
+  //   configFields: [{ key: 'trackingNumber', label: 'Tracking number', kind: 'fieldPicker' }],
+  //   executorArn: 'arn:aws:lambda:ap-southeast-2:123456789012:function:acme-shipping-lookup',
+  // },
 };
 
 export function getNodeType(type: string): NodeTypeDefinition {
