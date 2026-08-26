@@ -1,0 +1,24 @@
+{
+  "name": "@workspace/db",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/migrate.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-rds-data": "^3.600.0",
+    "drizzle-orm": "^0.33.0"
+  },
+  "devDependencies": {
+    "@workspace/typescript-config": "*",
+    "drizzle-kit": "^0.24.0",
+    "tsx": "^4.15.0",
+    "typescript": "^5"
+  }
+}

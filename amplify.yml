@@ -1,0 +1,35 @@
+version: 1
+applications:
+  - appRoot: apps/web
+    frontend:
+      buildPath: /
+      phases:
+        preBuild:
+          commands:
+            # buildPath: / means this runs from the true repo root already -
+            # no cd needed. This is what actually resolves every workspace
+            # package (packages/auth, packages/db, packages/flow-compiler).
+            - npm install
+        build:
+          commands:
+            # Amplify only exposes Console-configured env vars during the
+            # BUILD step by default - the running SSR compute function reads
+            # from apps/web/.env.production instead, which Amplify never
+            # populates automatically. This is the actual, sole cause of every
+            # "MissingSecret"/"InvalidEndpoints" error hit in deployed testing
+            # - every real fix (AUTH_SECRET, trustHost, Cognito values) was
+            # correct, none of them were ever reaching the running server.
+            # buildPath: / means this runs from repo root, so the path is
+            # apps/web/.env.production, not a bare .env.production.
+            - env | grep -e AUTH_ -e DB_ -e FLOW_ENGINE_API_URL -e INTERNAL_API_KEY -e NEXT_PUBLIC_ >> apps/web/.env.production
+            - npm run build --workspace=apps/web
+      artifacts:
+        # Full paths from repo root, not relative to appRoot - buildPath: /
+        # changes what these are resolved against.
+        baseDirectory: apps/web/.next
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+          - apps/web/.next/cache/**/*

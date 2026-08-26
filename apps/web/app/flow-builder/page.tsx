@@ -1,0 +1,98 @@
+// apps/web/app/flow-builder/page.tsx
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { flowBuilderApi } from '../../lib/flowBuilderApi';
+import type { FlowGraph } from '@workspace/flow-compiler';
+
+const DOCUMENT_TYPES = ['Order', 'Invoice'];
+
+export default function FlowBuilderDashboard() {
+  const router = useRouter();
+  const [documentType, setDocumentType] = useState(DOCUMENT_TYPES[0]);
+  const [drafts, setDrafts] = useState<FlowGraph[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    flowBuilderApi
+      .listDrafts(documentType)
+      .then(setDrafts)
+      .catch(() => setDrafts([]))
+      .finally(() => setLoading(false));
+  }, [documentType]);
+
+  async function handleCreate() {
+    setCreating(true);
+    try {
+      const draft = await flowBuilderApi.createDraft(documentType);
+      router.push(`/flow-builder/${draft.flowId}`);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl p-6">
+      <div className="mb-1 flex items-center gap-2 text-sm text-gray-500">
+        <Link href="/flow-builder" className="hover:text-gray-900">
+          Dashboard
+        </Link>
+        <span>/</span>
+        <span className="font-medium text-gray-900">Flow Builder</span>
+      </div>
+      <h1 className="mb-4 text-lg font-medium">Flows</h1>
+
+      <div className="mb-5 flex items-center gap-2">
+        {DOCUMENT_TYPES.map((dt) => (
+          <button
+            key={dt}
+            onClick={() => setDocumentType(dt)}
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              documentType === dt ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {dt}
+          </button>
+        ))}
+        <div className="flex-1" />
+        <button
+          onClick={handleCreate}
+          disabled={creating}
+          className="rounded bg-gray-900 px-3.5 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+        >
+          {creating ? 'Creating…' : '+ New draft'}
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-gray-500">Loading…</p>
+      ) : drafts.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
+          No draft flows for {documentType} yet - create one to get started.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {drafts.map((draft) => (
+            <Link
+              key={draft.flowId}
+              href={`/flow-builder/${draft.flowId}`}
+              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm hover:border-gray-300 hover:shadow"
+            >
+              <div>
+                <div className="text-sm font-medium text-gray-900">{draft.flowId}</div>
+                <div className="text-xs text-gray-400">
+                  {draft.nodes.length} node{draft.nodes.length === 1 ? '' : 's'}
+                </div>
+              </div>
+              <span className="text-sm text-gray-400">Open →</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
