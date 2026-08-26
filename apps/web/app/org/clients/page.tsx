@@ -5,6 +5,12 @@
 // /admin/organizations' pattern exactly, but scoped to the one org this
 // person administers, rather than platform-admin's every-org view.
 
+
+// Forces this page to render fresh on every request, at runtime, never as a build-time
+// static file - without this, Next.js pre-renders it once at BUILD time (when no SSR
+// compute role exists yet), bakes in whatever the DB call returned THEN, and serves
+// that frozen result forever afterward regardless of runtime fixes.
+export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getAuthorizationContext } from '@workspace/auth/server';
