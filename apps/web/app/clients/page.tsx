@@ -45,12 +45,19 @@ export default async function ClientsPage() {
         accessibleClients = authz.isPlatformAdmin
             ? await db.select().from(clients)
             : await getAccessibleClients(db, authz.userId);
-    } catch {
+    } catch (err) {
+        // This was a real bug - a bare catch that always showed the same "SSR
+        // compute role" message regardless of what actually failed. Now that the
+        // compute role is confirmed working (verified by directly assuming it
+        // and querying Aurora), this message could easily have been masking a
+        // completely different error the whole time. Logging the real one so
+        // CloudWatch shows what's actually happening, instead of guessing again.
+        console.error('Failed to load clients:', err);
         return (
             <div className="mx-auto max-w-2xl p-6">
                 <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-8 text-center text-sm text-amber-800">
-                    Can't reach the organization database right now - this page needs an SSR compute role
-                    attached to the Amplify app (RDS Data API + Secrets Manager access). See infra/lib/identity-stack.ts.
+                    Can't reach the organization database right now - check server logs for the actual error
+                    (this message no longer assumes it's the SSR compute role specifically).
                 </div>
             </div>
         );
