@@ -32,11 +32,13 @@ export default function RuleEditorPage() {
     }
   }, [isNew, params.clientId, params.flowId, params.ruleId]);
 
-  if (!rule) return <p className="text-sm text-gray-500">Loading…</p>;
+  if (!rule) return <p className="p-6 font-body-sm text-body-sm text-on-surface-variant">Loading…</p>;
 
   return (
-    <div className="p-6">
-      <h1 className="text-lg font-medium mb-4">{isNew ? 'New rule' : `Rule: ${rule.ruleId}`}</h1>
+    <div className="p-layout-margin">
+      <h1 className="mb-4 font-display-lg text-display-lg text-on-surface">
+        {isNew ? 'New rule' : `Rule: ${rule.ruleId}`}
+      </h1>
       <RuleForm
         initial={rule}
         onSave={async (r) => {

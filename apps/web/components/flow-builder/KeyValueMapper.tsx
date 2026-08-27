@@ -50,7 +50,7 @@ export function KeyValueMapper({
       {rows.map((row) => (
         <div key={row.id} className="flex items-start gap-1">
           <input
-            className="w-28 shrink-0 rounded border border-gray-200 px-2 py-1.5 font-mono text-xs"
+            className="w-28 shrink-0 rounded border border-outline-variant bg-background px-2 py-1.5 font-code-sm text-code-sm text-on-surface focus:border-primary focus:outline-none"
             placeholder={keyPlaceholder}
             value={row.key}
             onChange={(e) => updateRow(row.id, { key: e.target.value })}
@@ -66,7 +66,7 @@ export function KeyValueMapper({
           </div>
           <button
             onClick={() => removeRow(row.id)}
-            className="shrink-0 px-1 text-xs text-gray-300 hover:text-red-500"
+            className="shrink-0 px-1 text-body-sm text-on-surface-variant hover:text-error"
             aria-label="Remove row"
           >
             ✕
@@ -75,7 +75,7 @@ export function KeyValueMapper({
       ))}
       <button
         onClick={addRow}
-        className="rounded border border-dashed border-gray-300 px-2 py-1 text-xs text-gray-500 hover:border-gray-400 hover:text-gray-700"
+        className="rounded border border-dashed border-outline-variant px-2 py-1 font-body-sm text-body-sm text-on-surface-variant hover:border-outline hover:text-on-surface"
       >
         + Add row
       </button>

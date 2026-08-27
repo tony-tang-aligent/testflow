@@ -365,7 +365,7 @@ function CanvasInner() {
     }
   }
 
-  if (loading) return <p className="p-6 text-sm text-gray-500">Loading…</p>;
+  if (loading) return <p className="p-6 font-body-sm text-body-sm text-on-surface-variant">Loading…</p>;
 
   return (
     <div className="flex h-screen flex-col bg-[#F7F8FB]">
@@ -376,19 +376,19 @@ function CanvasInner() {
         }
       `}</style>
 
-      <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-5 py-2.5">
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Link href="/flow-builder" className="hover:text-gray-900">
+      <div className="flex shrink-0 items-center justify-between border-b border-outline-variant bg-surface px-5 py-2.5">
+        <div className="flex items-center gap-2 font-body-sm text-body-sm text-on-surface-variant">
+          <Link href="/flow-builder" className="hover:text-on-surface">
             Dashboard
           </Link>
           <span>/</span>
-          <span className="font-medium text-gray-900">Flow Builder</span>
+          <span className="font-medium text-on-surface">Flow Builder</span>
         </div>
         <div className="flex items-center gap-3">
           {statusMessage && (
             <span
               className={`rounded px-2.5 py-1 text-xs font-medium ${
-                statusMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+                statusMessage.type === 'success' ? 'bg-secondary-container/20 text-secondary' : 'bg-error-container/20 text-error'
               }`}
             >
               {statusMessage.text}
@@ -397,7 +397,7 @@ function CanvasInner() {
           <select
             value={documentType}
             onChange={(e) => setDocumentType(e.target.value)}
-            className="rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm"
+            className="rounded border border-outline-variant bg-background px-2 py-1 font-body-sm text-body-sm text-on-surface"
           >
             <option>Order</option>
             <option>Invoice</option>
@@ -427,12 +427,12 @@ function CanvasInner() {
         <div
           className={`shrink-0 border-b px-5 py-2.5 text-xs ${
             testResult.validationStatus === 'failed'
-              ? 'border-red-100 bg-red-50 text-red-800'
+              ? 'border-error/30 bg-error-container/20 text-error'
               : testResult.validationStatus === 'passed'
-                ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
+                ? 'border-secondary/30 bg-secondary-container/20 text-secondary'
                 : testResult.status === 'SUCCEEDED'
-                  ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
-                  : 'border-red-100 bg-red-50 text-red-800'
+                  ? 'border-secondary/30 bg-secondary-container/20 text-secondary'
+                  : 'border-error/30 bg-error-container/20 text-error'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -441,10 +441,10 @@ function CanvasInner() {
                 ? `Validation: ${testResult.validationStatus === 'failed' ? 'FAILED' : 'PASSED'}`
                 : `Execution: ${testResult.status}`}
               {testResult.validationStatus && (
-                <span className="ml-2 font-normal text-gray-400">(execution {testResult.status})</span>
+                <span className="ml-2 font-normal text-on-surface-variant">(execution {testResult.status})</span>
               )}
             </span>
-            <button onClick={() => setTestResult(null)} className="text-gray-400 hover:text-gray-700">
+            <button onClick={() => setTestResult(null)} className="text-on-surface-variant hover:text-on-surface">
               ✕
             </button>
           </div>
@@ -463,7 +463,7 @@ function CanvasInner() {
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
               <button
                 onClick={addStartNode}
-                className="pointer-events-auto rounded-lg border border-dashed border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-600 shadow-sm hover:border-gray-400 hover:text-gray-900"
+                className="pointer-events-auto rounded-lg border border-dashed border-outline-variant bg-surface-container px-5 py-3 font-body-sm text-body-sm font-medium text-on-surface-variant shadow-sm hover:border-outline hover:text-on-surface"
               >
                 + Add start node
               </button>
@@ -519,13 +519,13 @@ function CanvasInner() {
 
       {editingPayload && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/30">
-          <div className="w-[32rem] rounded-lg bg-white p-4 shadow-xl">
-            <h2 className="mb-2 text-sm font-medium text-gray-900">Sample payload</h2>
-            <p className="mb-2 text-xs text-gray-500">
+          <div className="w-[32rem] rounded-lg bg-surface-container p-4 shadow-xl">
+            <h2 className="mb-2 font-headline-md text-headline-md text-on-surface">Sample payload</h2>
+            <p className="mb-2 font-body-sm text-body-sm text-on-surface-variant">
               Drives the field picker in node config - browse instead of typing raw paths.
             </p>
             <textarea
-              className="h-64 w-full rounded border border-gray-200 p-2 font-mono text-xs"
+              className="h-64 w-full rounded border border-outline-variant bg-background p-2 font-code-base text-code-base text-on-surface"
               value={payloadDraft}
               onChange={(e) => setPayloadDraft(e.target.value)}
             />

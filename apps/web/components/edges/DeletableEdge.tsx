@@ -58,7 +58,7 @@ export function DeletableEdge({
           >
             <button
               onClick={() => data?.onDelete(id)}
-              className="flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white text-xs text-gray-500 shadow hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+              className="flex h-5 w-5 items-center justify-center rounded-full border border-outline-variant bg-surface-container font-body-sm text-body-sm text-on-surface-variant shadow hover:border-error/40 hover:bg-error-container/20 hover:text-error"
               title="Remove this connection"
             >
               ×

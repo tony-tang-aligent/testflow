@@ -15,13 +15,13 @@ export interface StartNodeData {
 export function StartNode({ data }: NodeProps<StartNodeData>) {
   return (
     <div className="group relative">
-      <div className="rounded-full border-2 border-gray-900 bg-gray-900 px-5 py-2 text-sm font-medium text-white shadow-sm transition-all group-hover:shadow-md">
+      <div className="rounded-full border-2 border-primary bg-primary px-5 py-2 font-body-sm text-body-sm font-medium text-on-primary shadow-sm transition-all group-hover:shadow-md">
         Start
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-gray-900" />
+      <Handle type="source" position={Position.Bottom} className="!bg-primary" />
       <button
         onClick={data.onAddScope}
-        className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-gray-300 bg-white px-2 py-0.5 text-xs font-medium text-gray-600 opacity-0 shadow transition-opacity group-hover:opacity-100 hover:bg-gray-50"
+        className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-outline-variant bg-surface-container px-2 py-0.5 font-body-sm text-body-sm font-medium text-on-surface-variant opacity-0 shadow transition-opacity group-hover:opacity-100 hover:bg-surface-container-highest"
         title="Add a group to repeat rules over"
       >
         +

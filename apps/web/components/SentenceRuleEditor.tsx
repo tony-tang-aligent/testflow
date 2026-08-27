@@ -66,7 +66,7 @@ export function SentenceRuleEditor({
   if (advanced) {
     return (
       <div className="space-y-3">
-        <button onClick={() => setAdvanced(false)} className="text-xs text-gray-500 hover:text-gray-900">
+        <button onClick={() => setAdvanced(false)} className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface">
           ← Back to simple editor
         </button>
         <RuleForm initial={rule} onSave={onSave} itemTree={itemTree} scopeLabel={itemTree.label} />
@@ -96,7 +96,7 @@ export function SentenceRuleEditor({
   return (
     <div className="space-y-5">
       {/* Kind toggle */}
-      <div className="inline-flex rounded-md border border-gray-200 p-0.5 text-xs">
+      <div className="inline-flex rounded-md border border-outline-variant p-0.5 font-body-sm text-body-sm">
         {(
           [
             { id: 'validation', label: 'Compare two values' },
@@ -107,7 +107,7 @@ export function SentenceRuleEditor({
             key={opt.id}
             onClick={() => setRule({ ...rule, kind: opt.id })}
             className={`rounded px-2.5 py-1 font-medium ${
-              rule.kind === opt.id ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'
+              rule.kind === opt.id ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-variant'
             }`}
           >
             {opt.label}
@@ -118,7 +118,7 @@ export function SentenceRuleEditor({
       {rule.kind === 'derivation' ? (
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Get</label>
+            <label className="mb-1 block font-label-caps text-label-caps uppercase text-on-surface-variant">Get</label>
             <ResolverSentencePicker
               itemTree={itemTree}
               value={rule.resolve ?? { source: 'payload', path: '' }}
@@ -127,9 +127,9 @@ export function SentenceRuleEditor({
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Remember this as</label>
+            <label className="mb-1 block font-label-caps text-label-caps uppercase text-on-surface-variant">Remember this as</label>
             <input
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm font-mono"
+              className="w-full rounded border border-outline-variant bg-background px-2 py-1.5 font-code-sm text-code-sm text-on-surface focus:border-primary focus:outline-none"
               placeholder="e.g. documentType"
               value={rule.writesTo ?? ''}
               onChange={(e) => setRule({ ...rule, writesTo: e.target.value })}
@@ -139,7 +139,7 @@ export function SentenceRuleEditor({
       ) : (
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Get</label>
+            <label className="mb-1 block font-label-caps text-label-caps uppercase text-on-surface-variant">Get</label>
             <ResolverSentencePicker
               itemTree={itemTree}
               value={rule.evaluate?.left ?? { source: 'payload', path: '' }}
@@ -158,9 +158,9 @@ export function SentenceRuleEditor({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Compare</label>
+            <label className="mb-1 block font-label-caps text-label-caps uppercase text-on-surface-variant">Compare</label>
             <select
-              className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+              className="rounded border border-outline-variant bg-background px-2 py-1.5 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
               value={comparator}
               onChange={(e) =>
                 setRule({
@@ -183,13 +183,13 @@ export function SentenceRuleEditor({
 
           {showTolerance && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">
+              <label className="mb-1 block font-label-caps text-label-caps uppercase text-on-surface-variant">
                 {comparator === 'withinTolerancePct' ? 'Tolerance (%)' : 'Tolerance (amount)'}
               </label>
               <input
                 type="number"
                 step="0.01"
-                className="w-32 rounded border border-gray-300 px-2 py-1.5 text-sm"
+                className="w-32 rounded border border-outline-variant bg-background px-2 py-1.5 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
                 value={rule.evaluate?.tolerance ?? 0}
                 onChange={(e) =>
                   setRule({
@@ -208,7 +208,7 @@ export function SentenceRuleEditor({
 
           {showRight && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">To</label>
+              <label className="mb-1 block font-label-caps text-label-caps uppercase text-on-surface-variant">To</label>
               <ResolverSentencePicker
                 itemTree={itemTree}
                 value={rule.evaluate?.right ?? { source: 'payload', path: '' }}
@@ -229,8 +229,8 @@ export function SentenceRuleEditor({
           )}
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">If this fails</label>
-            <div className="inline-flex rounded-md border border-gray-200 p-0.5 text-xs">
+            <label className="mb-1 block font-label-caps text-label-caps uppercase text-on-surface-variant">If this fails</label>
+            <div className="inline-flex rounded-md border border-outline-variant p-0.5 font-body-sm text-body-sm">
               {(
                 [
                   { id: 'block' as Severity, label: 'Stop the order' },
@@ -241,7 +241,7 @@ export function SentenceRuleEditor({
                   key={opt.id}
                   onClick={() => setRule({ ...rule, severity: opt.id })}
                   className={`rounded px-2.5 py-1 font-medium ${
-                    (rule.severity ?? 'block') === opt.id ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'
+                    (rule.severity ?? 'block') === opt.id ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-variant'
                   }`}
                 >
                   {opt.label}
@@ -251,9 +251,9 @@ export function SentenceRuleEditor({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Show this message on the report</label>
+            <label className="mb-1 block font-label-caps text-label-caps uppercase text-on-surface-variant">Show this message on the report</label>
             <input
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+              className="w-full rounded border border-outline-variant bg-background px-2 py-1.5 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
               placeholder="e.g. Line price doesn't match the PO"
               value={rule.message ?? ''}
               onChange={(e) => setRule({ ...rule, message: e.target.value })}
@@ -263,20 +263,20 @@ export function SentenceRuleEditor({
       )}
 
       {/* Gate builder - "only run this if" */}
-      <div className="border-t border-gray-100 pt-3">
-        <label className="mb-1 flex items-center gap-2 text-xs font-medium text-gray-500">
+      <div className="border-t border-outline-variant pt-3">
+        <label className="mb-1 flex items-center gap-2 font-label-caps text-label-caps uppercase text-on-surface-variant">
           <input type="checkbox" checked={gateEnabled} onChange={(e) => setGateEnabled(e.target.checked)} />
           Only run this if…
         </label>
         {gateEnabled &&
           (availableContextKeys.length === 0 ? (
-            <p className="text-xs text-amber-600">
+            <p className="font-body-sm text-body-sm text-tertiary">
               No saved values yet in this group — add a "Save a value" step first, then come back to gate on it.
             </p>
           ) : (
             <div className="flex items-center gap-2">
               <select
-                className="rounded border border-gray-300 px-2 py-1 text-sm font-mono"
+                className="rounded border border-outline-variant bg-background px-2 py-1 font-code-sm text-code-sm text-on-surface focus:border-primary focus:outline-none"
                 value={gate.key}
                 onChange={(e) => setGate({ ...gate, key: e.target.value })}
               >
@@ -287,7 +287,7 @@ export function SentenceRuleEditor({
                 ))}
               </select>
               <select
-                className="rounded border border-gray-300 px-2 py-1 text-sm"
+                className="rounded border border-outline-variant bg-background px-2 py-1 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
                 value={gate.comparator}
                 onChange={(e) => setGate({ ...gate, comparator: e.target.value as 'equals' | 'notEquals' })}
               >
@@ -295,7 +295,7 @@ export function SentenceRuleEditor({
                 <option value="notEquals">is not</option>
               </select>
               <input
-                className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
+                className="flex-1 rounded border border-outline-variant bg-background px-2 py-1 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
                 placeholder="value"
                 value={gate.value}
                 onChange={(e) => setGate({ ...gate, value: e.target.value })}
@@ -304,14 +304,14 @@ export function SentenceRuleEditor({
           ))}
       </div>
 
-      <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-        <button onClick={() => setAdvanced(true)} className="text-xs text-gray-400 hover:text-gray-700">
+      <div className="flex items-center justify-between border-t border-outline-variant pt-3">
+        <button onClick={() => setAdvanced(true)} className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface">
           Advanced (JSON) editor
         </button>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded bg-primary px-4 py-2 font-body-sm text-body-sm font-medium text-on-primary disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Save rule'}
         </button>

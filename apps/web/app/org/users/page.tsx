@@ -29,6 +29,9 @@ import {
   clients,
 } from '@workspace/db';
 import { isDevBypassActive, warnBypass } from '@workspace/auth/devBypass';
+import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
+import { Badge } from '../../../components/ui/badge';
 
 export default async function OrgUsersPage() {
   const authz = await getAuthorizationContext();
@@ -40,9 +43,9 @@ export default async function OrgUsersPage() {
   if (isDevBypassActive()) {
     warnBypass('app/org/users/page.tsx');
     return (
-      <div className="mx-auto max-w-2xl p-6">
-        <h1 className="mb-4 text-lg font-medium">Users</h1>
-        <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-6 text-sm text-amber-800">
+      <div className="mx-auto max-w-2xl p-layout-margin">
+        <h1 className="mb-4 font-display-lg text-display-lg text-on-surface">Users</h1>
+        <div className="rounded-lg border border-dashed border-tertiary/40 bg-tertiary-container/10 p-6 font-body-sm text-body-sm text-tertiary">
           DEV_BYPASS_AUTH is on - this page needs the real Aurora database, which bypass mode
           deliberately doesn't fake.
         </div>
@@ -52,9 +55,9 @@ export default async function OrgUsersPage() {
 
   if (!adminOrg) {
     return (
-      <div className="mx-auto max-w-2xl p-6">
-        <h1 className="mb-1 text-lg font-medium">Users</h1>
-        <p className="text-sm text-gray-500">You don't administer a specific organization.</p>
+      <div className="mx-auto max-w-2xl p-layout-margin">
+        <h1 className="mb-1 font-display-lg text-display-lg text-on-surface">Users</h1>
+        <p className="font-body-sm text-body-sm text-on-surface-variant">You don't administer a specific organization.</p>
       </div>
     );
   }
@@ -111,48 +114,41 @@ export default async function OrgUsersPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <h1 className="mb-1 text-lg font-medium">Users</h1>
-      <p className="mb-6 text-sm text-gray-500">{adminOrg.organizationName}</p>
+    <div className="mx-auto max-w-3xl space-y-xl p-layout-margin">
+      <div>
+        <h1 className="font-display-lg text-display-lg text-on-surface">Users</h1>
+        <p className="mt-xs font-body-sm text-body-sm text-on-surface-variant">{adminOrg.organizationName}</p>
+      </div>
 
-      <form action={handleAddMember} className="mb-6 flex gap-2 rounded-lg border border-gray-200 bg-white p-4">
-        <input
-          name="email"
-          type="email"
-          placeholder="Existing user's email"
-          className="flex-1 rounded border border-gray-300 px-3 py-1.5 text-sm"
-        />
-        <select name="role" className="rounded border border-gray-300 px-2 py-1.5 text-sm">
-          <option value="member">Member</option>
-          <option value="admin">Admin</option>
-        </select>
-        <button type="submit" className="rounded bg-gray-900 px-4 py-1.5 text-sm font-medium text-white">
-          Add
-        </button>
-      </form>
+      <div className="rounded-lg border border-outline-variant bg-surface-container p-lg">
+        <form action={handleAddMember} className="flex gap-2">
+          <Input name="email" type="email" placeholder="Existing user's email" className="flex-1" />
+          <select name="role" className="rounded border border-outline-variant bg-background px-2 py-1.5 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none">
+            <option value="member">Member</option>
+            <option value="admin">Admin</option>
+          </select>
+          <Button type="submit">Add</Button>
+        </form>
+      </div>
 
-      <div className="space-y-3">
+      <div className="space-y-sm">
         {members.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
-            No members yet.
+          <div className="rounded-lg border border-dashed border-outline-variant p-12 text-center">
+            <p className="font-body-sm text-body-sm text-on-surface-variant">No members yet.</p>
           </div>
         ) : (
           members.map((member) => (
-            <div key={member.userId} className="rounded-lg border border-gray-200 bg-white p-4">
+            <div key={member.userId} className="rounded-lg border border-outline-variant bg-surface-container p-lg">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{member.email}</span>
-                <span
-                  className={`rounded px-2 py-0.5 text-xs font-medium ${
-                    member.role === 'admin' ? 'bg-purple-50 text-purple-700' : 'bg-gray-100 text-gray-600'
-                  }`}
-                >
-                  {member.role}
-                </span>
+                <span className="font-medium text-on-surface">{member.email}</span>
+                <Badge variant={member.role === 'admin' ? 'default' : 'secondary'}>{member.role}</Badge>
               </div>
 
               {member.role === 'member' && orgClients.length > 0 && (
-                <div className="mt-3 border-t border-gray-100 pt-3">
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">Client access</p>
+                <div className="mt-3 border-t border-outline-variant pt-3">
+                  <p className="mb-2 font-label-caps text-label-caps uppercase tracking-wide text-on-surface-variant">
+                    Client access
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {orgClients.map((client) => {
                       const granted = accessByUser.get(member.userId)?.has(client.id) ?? false;
@@ -163,8 +159,10 @@ export default async function OrgUsersPage() {
                           <input type="hidden" name="currentlyGranted" value={String(granted)} />
                           <button
                             type="submit"
-                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                              granted ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            className={`rounded-full px-2.5 py-1 font-body-sm text-body-sm font-medium ${
+                              granted
+                                ? 'border border-secondary/30 bg-secondary-container/20 text-secondary'
+                                : 'border border-outline-variant bg-surface-variant text-on-surface-variant hover:bg-surface-container-highest'
                             }`}
                           >
                             {client.name} {granted ? '✓' : '+'}

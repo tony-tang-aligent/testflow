@@ -103,15 +103,15 @@ export function NodeConfigPanel({
           >
             {def.category}
           </span>
-          <p className="mt-1.5 text-sm text-gray-500">{def.description}</p>
+          <p className="mt-1.5 font-body-sm text-body-sm text-on-surface-variant">{def.description}</p>
         </div>
-        <button onClick={onDelete} className="shrink-0 text-xs text-red-500 hover:text-red-700 hover:underline">
+        <button onClick={onDelete} className="shrink-0 font-body-sm text-body-sm text-error hover:underline">
           Delete node
         </button>
       </div>
 
       {def.canHaveOutput && def.category === 'action' && (
-        <div className="mb-4 rounded bg-blue-50 px-3 py-2 text-xs text-blue-800">
+        <div className="mb-4 rounded bg-primary-container/20 px-3 py-2 font-body-sm text-body-sm text-primary">
           {actionSampleResponses[nodeId] !== undefined ? (
             <>A response has been captured - other nodes' field pickers can now browse into it directly.</>
           ) : (
@@ -125,11 +125,11 @@ export function NodeConfigPanel({
 
       <div className="space-y-4">
         {def.configFields.length === 0 && (
-          <p className="text-sm text-gray-400">This node has no configuration.</p>
+          <p className="font-body-sm text-body-sm text-on-surface-variant">This node has no configuration.</p>
         )}
         {def.configFields.map((field) => (
           <div key={field.key}>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-400">
+            <label className="mb-1 block font-label-caps text-label-caps uppercase tracking-wide text-on-surface-variant">
               {field.label}
             </label>
             {field.kind === 'fieldPicker' ? (
@@ -147,7 +147,7 @@ export function NodeConfigPanel({
               />
             ) : field.kind === 'textarea' ? (
               <textarea
-                className="w-full rounded border border-gray-200 px-2.5 py-2 font-mono text-sm"
+                className="w-full rounded border border-outline-variant bg-background px-2.5 py-2 font-code-base text-code-base text-on-surface focus:border-primary focus:outline-none"
                 rows={3}
                 placeholder={field.placeholder}
                 value={String(config[field.key] ?? '')}
@@ -155,7 +155,7 @@ export function NodeConfigPanel({
               />
             ) : field.kind === 'select' ? (
               <select
-                className="w-full rounded border border-gray-200 px-2.5 py-2 text-sm"
+                className="w-full rounded border border-outline-variant bg-background px-2.5 py-2 font-body-base text-body-base text-on-surface focus:border-primary focus:outline-none"
                 value={String(config[field.key] ?? field.options?.[0] ?? '')}
                 onChange={(e) => onConfigChange({ [field.key]: e.target.value })}
               >
@@ -167,7 +167,7 @@ export function NodeConfigPanel({
               </select>
             ) : (
               <input
-                className="w-full rounded border border-gray-200 px-2.5 py-2 font-mono text-sm"
+                className="w-full rounded border border-outline-variant bg-background px-2.5 py-2 font-code-base text-code-base text-on-surface focus:border-primary focus:outline-none"
                 placeholder={field.placeholder}
                 value={String(config[field.key] ?? '')}
                 onChange={(e) => onConfigChange({ [field.key]: e.target.value })}
@@ -177,66 +177,66 @@ export function NodeConfigPanel({
         ))}
 
         {!samplePayload && def.configFields.some((f) => f.kind === 'fieldPicker' || f.kind === 'keyValueMapper') && (
-          <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          <p className="rounded bg-tertiary-container/20 px-3 py-2 font-body-sm text-body-sm text-tertiary">
             Set a sample payload (top bar) to browse fields instead of typing paths by hand.
           </p>
         )}
 
         {nodeType === 'httpCall' && (
-          <div className="border-t border-gray-100 pt-4">
+          <div className="border-t border-outline-variant pt-4">
             <button
               onClick={handleSendTest}
               disabled={sending || !config.url}
-              className="w-full rounded bg-gray-900 px-3 py-2 text-xs font-medium text-white disabled:opacity-40"
+              className="w-full rounded bg-primary px-3 py-2 font-body-sm text-body-sm font-medium text-on-primary disabled:opacity-40"
             >
               {sending ? 'Sending…' : 'Send test request'}
             </button>
 
             {testResult && (
-              <div className="mt-3 space-y-2 rounded border border-gray-200 bg-gray-50 p-3">
+              <div className="mt-3 space-y-2 rounded border border-outline-variant bg-surface-container-low p-3">
                 {testResult.error ? (
-                  <p className="text-xs text-red-600">{testResult.error}</p>
+                  <p className="font-body-sm text-body-sm text-error">{testResult.error}</p>
                 ) : testResult.response ? (
                   <>
                     <div className="flex items-center gap-2">
                       <span
-                        className={`rounded px-1.5 py-0.5 text-xs font-semibold ${
+                        className={`rounded px-1.5 py-0.5 font-code-sm text-code-sm ${
                           testResult.response.status < 300
-                            ? 'bg-emerald-100 text-emerald-800'
+                            ? 'bg-secondary-container/20 text-secondary'
                             : testResult.response.status < 400
-                              ? 'bg-amber-100 text-amber-800'
-                              : 'bg-red-100 text-red-800'
+                              ? 'bg-tertiary-container/20 text-tertiary'
+                              : 'bg-error-container/20 text-error'
                         }`}
                       >
                         {testResult.response.status} {testResult.response.statusText}
                       </span>
-                      <span className="text-xs text-gray-400">{testResult.response.timeMs}ms</span>
-                      <span className="text-xs text-emerald-700">✓ captured for other nodes to reference</span>
+                      <span className="font-body-sm text-body-sm text-on-surface-variant">{testResult.response.timeMs}ms</span>
+                      <span className="font-body-sm text-body-sm text-secondary">captured for other nodes to reference</span>
                     </div>
-                    <details className="text-xs">
-                      <summary className="cursor-pointer text-gray-500 hover:text-gray-800">
+                    <details className="font-body-sm text-body-sm">
+                      <summary className="cursor-pointer text-on-surface-variant hover:text-on-surface">
                         Request sent ({testResult.request.method})
                       </summary>
-                      <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded bg-white p-2 font-mono text-[10px]">
+                      <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded bg-background p-2 font-code-sm text-code-sm text-on-surface-variant">
                         {testResult.request.url}
                         {'\n'}
                         {JSON.stringify(testResult.request.headers, null, 2)}
                         {testResult.request.body ? `\n\n${testResult.request.body}` : ''}
                       </pre>
                     </details>
-                    <details className="text-xs" open>
-                      <summary className="cursor-pointer text-gray-500 hover:text-gray-800">
+                    <details className="font-body-sm text-body-sm" open>
+                      <summary className="cursor-pointer text-on-surface-variant hover:text-on-surface">
                         Response headers
                       </summary>
-                      <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded bg-white p-2 font-mono text-[10px]">
+                      <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded bg-background p-2 font-code-sm text-code-sm text-on-surface-variant">
                         {JSON.stringify(testResult.response.headers, null, 2)}
                       </pre>
                     </details>
-                    <details className="text-xs" open>
-                      <summary className="cursor-pointer text-gray-500 hover:text-gray-800">
+                    <details className="font-body-sm text-body-sm" open>
+                      <summary className="cursor-pointer text-on-surface-variant hover:text-on-surface">
                         Response body
                       </summary>
-                      <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-white p-2 font-mono text-[10px]">
+                      <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-background p-2 font-code-sm text-code-sm text-on-surface-variant">
                         {testResult.response.body || '(empty)'}
                       </pre>
                     </details>

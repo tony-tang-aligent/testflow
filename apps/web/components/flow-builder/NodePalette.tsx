@@ -1,6 +1,14 @@
 // apps/web/components/flow-builder/NodePalette.tsx
+//
+// M3 dark tokens throughout, matching the provided design spec - Material
+// Symbols for the search icon instead of lucide, consistent with the rest
+// of this design system. The category-accent-color system is untouched -
+// that's meaningful (each color maps to a real node category everywhere in
+// the canvas), not decoration.
+
 import React, { useMemo, useState } from 'react';
 import { NODE_TYPE_REGISTRY, NodeCategory } from '@workspace/flow-compiler';
+import { cn } from '../../lib/utils';
 
 const CATEGORY_LABELS: Record<NodeCategory, string> = {
   control: 'Control',
@@ -51,25 +59,31 @@ export function NodePalette() {
   }
 
   return (
-    <div className="flex h-full w-64 flex-col bg-[#13151A] text-gray-300">
+    <div className="flex h-full w-64 flex-col border-r border-outline-variant bg-surface-container-low">
       <div className="p-3">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search nodes…"
-          className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white placeholder:text-gray-500 focus:border-white/30 focus:outline-none"
-        />
+        <div className="relative">
+          <span className="material-symbols-outlined pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[16px] text-on-surface-variant">
+            search
+          </span>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search nodes…"
+            className="w-full rounded border border-outline-variant bg-background py-1.5 pl-8 pr-2 font-body-sm text-body-sm text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none"
+          />
+        </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => toggleCategory(cat)}
-              className={`rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide transition-colors ${
-                activeCategories.has(cat) ? 'text-white' : 'text-gray-400 hover:text-gray-200'
-              }`}
-              style={{
-                background: activeCategories.has(cat) ? CATEGORY_ACCENT[cat] : 'rgba(255,255,255,0.06)',
-              }}
+              className={cn(
+                'rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide transition-colors',
+                activeCategories.has(cat)
+                  ? 'text-on-tertiary'
+                  : 'border border-outline-variant bg-background text-on-surface-variant hover:text-on-surface',
+              )}
+              style={activeCategories.has(cat) ? { background: CATEGORY_ACCENT[cat] } : undefined}
             >
               {CATEGORY_LABELS[cat]}
             </button>
@@ -83,7 +97,7 @@ export function NodePalette() {
             key={def.type}
             draggable
             onDragStart={(e) => onDragStart(e, def.type)}
-            className="cursor-grab rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 transition-colors hover:bg-white/[0.08] active:cursor-grabbing"
+            className="cursor-grab rounded-lg border border-outline-variant bg-surface px-3 py-2.5 shadow-sm transition-colors hover:border-primary active:cursor-grabbing"
             style={{ borderLeft: `3px solid ${CATEGORY_ACCENT[def.category]}` }}
           >
             <span
@@ -92,12 +106,12 @@ export function NodePalette() {
             >
               {CATEGORY_LABELS[def.category]}
             </span>
-            <div className="text-sm font-medium text-white">{def.label}</div>
-            <p className="mt-0.5 text-xs leading-snug text-gray-400">{def.description}</p>
+            <div className="font-body-base text-body-base font-medium text-on-surface">{def.label}</div>
+            <p className="mt-0.5 font-body-sm text-body-sm leading-snug text-on-surface-variant">{def.description}</p>
           </div>
         ))}
         {nodeTypes.length === 0 && (
-          <p className="px-1 pt-6 text-center text-xs text-gray-500">No node types match.</p>
+          <p className="px-1 pt-6 text-center font-body-sm text-body-sm text-on-surface-variant">No node types match.</p>
         )}
       </div>
     </div>

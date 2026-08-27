@@ -134,16 +134,16 @@ function CorrectionForm({
   const blockingCount = activeViolations.filter((v) => v.severity === 'block').length;
 
   return (
-    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
+    <div className="rounded-lg border border-primary/30 bg-primary-container/10 p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-blue-800">
+        <p className="font-body-sm text-body-sm text-primary">
           {blockingCount > 0
             ? `${blockingCount} blocking issue${blockingCount === 1 ? '' : 's'} to fix. Warnings can be dismissed instead.`
             : 'No blocking issues remain - dismiss any warnings you want to acknowledge, or just resubmit as-is.'}
         </p>
         <button
           onClick={() => setAdvancedMode((a) => !a)}
-          className="whitespace-nowrap text-xs text-blue-700 underline hover:no-underline"
+          className="whitespace-nowrap font-body-sm text-body-sm text-primary underline hover:no-underline"
         >
           {advancedMode ? 'Back to quick corrections' : 'Edit full JSON instead'}
         </button>
@@ -151,9 +151,9 @@ function CorrectionForm({
 
       {advancedMode ? (
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-600">Corrected payload</label>
+          <label className="mb-1 block font-label-caps text-label-caps uppercase text-on-surface-variant">Corrected payload</label>
           <textarea
-            className="h-64 w-full rounded border border-gray-300 p-3 font-mono text-xs"
+            className="h-64 w-full rounded border border-outline-variant bg-background p-3 font-code-sm text-code-sm text-on-surface focus:border-primary focus:outline-none"
             value={payloadText}
             onChange={(e) => setPayloadText(e.target.value)}
           />
@@ -161,23 +161,23 @@ function CorrectionForm({
       ) : (
         <div className="space-y-2">
           {quickCorrectable.length === 0 && notQuickCorrectable.length === 0 ? (
-            <p className="text-sm text-gray-500">No blocking fields to correct.</p>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">No blocking fields to correct.</p>
           ) : (
             quickCorrectable.map((v) => (
-              <div key={violationKey(v)} className="rounded border border-gray-200 bg-white p-2.5">
-                <div className="mb-1 flex items-center gap-2 text-xs text-gray-500">
-                  <span className="font-mono">{v.ruleId}</span>
+              <div key={violationKey(v)} className="rounded border border-outline-variant bg-surface-container p-2.5">
+                <div className="mb-1 flex items-center gap-2 font-body-sm text-body-sm text-on-surface-variant">
+                  <span className="font-code-sm text-code-sm">{v.ruleId}</span>
                   <span>·</span>
-                  <span className="font-mono">
+                  <span className="font-code-sm text-code-sm">
                     {v.scopeId}
                     {v.itemId ? ` / ${v.itemId}` : ''} → {v.correctablePath}
                   </span>
                 </div>
-                <p className="mb-1.5 text-sm text-gray-700">{v.message}</p>
+                <p className="mb-1.5 font-body-sm text-body-sm text-on-surface">{v.message}</p>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400">Current: {String(v.actual)}</span>
+                  <span className="font-body-sm text-body-sm text-on-surface-variant">Current: {String(v.actual)}</span>
                   <input
-                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm font-mono"
+                    className="flex-1 rounded border border-outline-variant bg-background px-2 py-1 font-code-sm text-code-sm text-on-surface focus:border-primary focus:outline-none"
                     placeholder={`Corrected value (e.g. ${String(v.expected)})`}
                     value={fieldEdits[violationKey(v)] ?? ''}
                     onChange={(e) => setFieldEdits((f) => ({ ...f, [violationKey(v)]: e.target.value }))}
@@ -188,7 +188,7 @@ function CorrectionForm({
           )}
 
           {notQuickCorrectable.length > 0 && (
-            <p className="text-xs text-amber-700">
+            <p className="font-body-sm text-body-sm text-tertiary">
               {notQuickCorrectable.length} issue{notQuickCorrectable.length === 1 ? '' : 's'} came from a
               lookup, not this payload directly - use &quot;Edit full JSON instead&quot; to address{' '}
               {notQuickCorrectable.length === 1 ? 'it' : 'those'}.
@@ -198,12 +198,12 @@ function CorrectionForm({
       )}
 
       {activeViolations.some((v) => v.severity === 'warn') && (
-        <div className="border-t border-blue-100 pt-2">
-          <p className="mb-1 text-xs font-medium text-gray-600">Dismiss warnings</p>
+        <div className="border-t border-primary/20 pt-2">
+          <p className="mb-1 font-label-caps text-label-caps uppercase text-on-surface-variant">Dismiss warnings</p>
           {activeViolations
             .filter((v) => v.severity === 'warn')
             .map((v) => (
-              <label key={violationKey(v)} className="flex items-center gap-2 py-0.5 text-sm text-gray-700">
+              <label key={violationKey(v)} className="flex items-center gap-2 py-0.5 font-body-sm text-body-sm text-on-surface">
                 <input
                   type="checkbox"
                   checked={!!dismissed[violationKey(v)]}
@@ -215,11 +215,11 @@ function CorrectionForm({
         </div>
       )}
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="font-body-sm text-body-sm text-error">{error}</p>}
       <button
         onClick={handleSubmit}
         disabled={submitting}
-        className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        className="rounded bg-primary px-4 py-2 font-body-sm text-body-sm font-medium text-on-primary disabled:opacity-50"
       >
         {submitting ? 'Submitting…' : 'Submit correction & re-validate'}
       </button>
@@ -253,27 +253,27 @@ export default function ExecutionDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.clientId, params.flowId, params.executionId]);
 
-  if (loading) return <p className="p-6 text-sm text-gray-500">Loading…</p>;
+  if (loading) return <p className="p-6 font-body-sm text-body-sm text-on-surface-variant">Loading…</p>;
   if (!detail)
     return (
-      <div className="p-6">
-        <Link href={`/clients/${params.clientId}/flows/${params.flowId}/executions`} className="text-sm text-gray-500 hover:text-gray-900">
+      <div className="p-layout-margin">
+        <Link href={`/clients/${params.clientId}/flows/${params.flowId}/executions`} className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface">
           &larr; Back to executions
         </Link>
-        <p className="mt-3 text-sm text-gray-500">Execution detail not found.</p>
+        <p className="mt-3 font-body-sm text-body-sm text-on-surface-variant">Execution detail not found.</p>
       </div>
     );
 
   return (
-    <div className="max-w-3xl space-y-4 p-6">
-      <Link href={`/clients/${params.clientId}/flows/${params.flowId}/executions`} className="text-sm text-gray-500 hover:text-gray-900">
+    <div className="max-w-3xl space-y-4 p-layout-margin">
+      <Link href={`/clients/${params.clientId}/flows/${params.flowId}/executions`} className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface">
         &larr; Back to executions
       </Link>
       <div className="flex items-center gap-3">
-        <h1 className="text-lg font-medium">Order {detail.orderId}</h1>
+        <h1 className="font-display-lg text-display-lg text-on-surface">Order {detail.orderId}</h1>
         <StatusBadge status={detail.status} />
       </div>
-      <p className="text-xs text-gray-500">Evaluated {new Date(detail.evaluatedAt).toLocaleString()}</p>
+      <p className="font-body-sm text-body-sm text-on-surface-variant">Evaluated {new Date(detail.evaluatedAt).toLocaleString()}</p>
 
       {detail.status === 'needs_review' && flow && (
         <CorrectionForm
@@ -290,20 +290,20 @@ export default function ExecutionDetailPage() {
       )}
 
       <div>
-        <h2 className="text-sm font-medium mb-2">
+        <h2 className="font-headline-md text-headline-md text-on-surface mb-2">
           Violations ({detail.violations.length})
           {detail.violations.some((v) => v.dismissed) && (
-            <span className="ml-2 text-xs font-normal text-gray-400">
+            <span className="ml-2 font-body-sm text-body-sm font-normal text-on-surface-variant">
               ({detail.violations.filter((v) => v.dismissed).length} dismissed)
             </span>
           )}
         </h2>
         {detail.violations.length === 0 ? (
-          <p className="text-sm text-gray-500">No violations.</p>
+          <p className="font-body-sm text-body-sm text-on-surface-variant">No violations.</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-200 text-left text-xs text-gray-500">
+              <tr className="border-b border-outline-variant text-left font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant">
                 <th className="py-2 font-medium">Rule</th>
                 <th className="py-2 font-medium">Scope / item</th>
                 <th className="py-2 font-medium">Severity</th>
@@ -314,15 +314,15 @@ export default function ExecutionDetailPage() {
             </thead>
             <tbody>
               {detail.violations.map((v, i) => (
-                <tr key={i} className={`border-b border-gray-100 ${v.dismissed ? 'opacity-50' : ''}`}>
-                  <td className="py-2 font-mono">{v.ruleId}</td>
-                  <td className="py-2 font-mono text-gray-600">
+                <tr key={i} className={`border-b border-outline-variant ${v.dismissed ? 'opacity-50' : ''}`}>
+                  <td className="py-2 font-code-sm text-code-sm">{v.ruleId}</td>
+                  <td className="py-2 font-code-sm text-code-sm text-on-surface-variant">
                     {v.scopeId}
                     {v.itemId ? ` / ${v.itemId}` : ''}
                   </td>
                   <td className="py-2">
                     {v.severity}
-                    {v.dismissed && <span className="ml-1 text-xs text-gray-400">(dismissed)</span>}
+                    {v.dismissed && <span className="ml-1 font-body-sm text-body-sm text-on-surface-variant">(dismissed)</span>}
                   </td>
                   <td className="py-2">{String(v.expected)}</td>
                   <td className="py-2">{String(v.actual)}</td>
@@ -335,8 +335,8 @@ export default function ExecutionDetailPage() {
       </div>
 
       <div>
-        <h2 className="text-sm font-medium mb-2">Rules evaluated ({detail.rulesEvaluated.length})</h2>
-        <p className="text-xs font-mono text-gray-500">
+        <h2 className="font-headline-md text-headline-md text-on-surface mb-2">Rules evaluated ({detail.rulesEvaluated.length})</h2>
+        <p className="font-code-sm text-code-sm text-on-surface-variant">
           {detail.rulesEvaluated.map((r) => `${r.ruleId}@v${r.version}`).join(', ')}
         </p>
       </div>

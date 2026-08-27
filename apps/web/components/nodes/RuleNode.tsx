@@ -14,8 +14,8 @@ export interface RuleNodeData {
 }
 
 const KIND_COLOR: Record<Rule['kind'], string> = {
-  derivation: 'bg-amber-50 border-amber-200 text-amber-900',
-  validation: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+  derivation: 'bg-tertiary-container/15 border-tertiary/30 text-on-surface',
+  validation: 'bg-secondary-container/15 border-secondary/30 text-on-surface',
 };
 
 const KIND_LABEL: Record<Rule['kind'], string> = {
@@ -37,23 +37,23 @@ export function RuleNode({ id, data, selected }: NodeProps<RuleNodeData>) {
       onClick={() => data.onEdit(id)}
       className={`min-w-[180px] cursor-pointer rounded-lg border-2 px-3 py-2 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 ${colorClass} ${
         unconfigured ? 'border-dashed' : ''
-      } ${selected ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
+      } ${selected ? 'ring-2 ring-offset-1 ring-outline ring-offset-background' : ''}`}
     >
-      <Handle type="target" position={Position.Top} className="!bg-gray-400" />
+      <Handle type="target" position={Position.Top} className="!bg-outline" />
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide opacity-70">{KIND_LABEL[rule.kind]}</span>
+        <span className="font-label-caps text-label-caps uppercase tracking-wide text-on-surface-variant">{KIND_LABEL[rule.kind]}</span>
         {rule.severity && (
-          <span className="text-[10px] rounded-full bg-white/70 px-1.5 py-0.5 font-medium">
+          <span className="rounded-full bg-surface/70 px-1.5 py-0.5 font-code-sm text-[10px] font-medium text-on-surface">
             {rule.severity === 'block' ? 'Stops order' : 'Flags only'}
           </span>
         )}
       </div>
       {unconfigured ? (
-        <div className="text-sm italic opacity-60">Click to configure</div>
+        <div className="font-body-sm text-body-sm italic text-on-surface-variant">Click to configure</div>
       ) : (
-        <div className="text-sm opacity-90 max-w-[200px]">{rule.message || rule.writesTo || rule.ruleId}</div>
+        <div className="max-w-[200px] font-body-sm text-body-sm text-on-surface-variant">{rule.message || rule.writesTo || rule.ruleId}</div>
       )}
-      <Handle type="source" position={Position.Bottom} className="!bg-gray-400" />
+      <Handle type="source" position={Position.Bottom} className="!bg-outline" />
     </div>
   );
 }

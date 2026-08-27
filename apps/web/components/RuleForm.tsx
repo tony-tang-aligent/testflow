@@ -62,22 +62,22 @@ export function RuleForm({
     <div className="space-y-4 max-w-2xl">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs font-medium text-gray-500">Rule ID</label>
+          <label className="font-label-caps text-label-caps uppercase text-on-surface-variant">Rule ID</label>
           <input
-            className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm font-mono"
+            className="w-full rounded border border-outline-variant bg-background px-2 py-1.5 font-code-sm text-code-sm text-on-surface focus:border-primary focus:outline-none"
             value={rule.ruleId}
             onChange={(e) => setRule({ ...rule, ruleId: e.target.value })}
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-500">Scope</label>
+          <label className="font-label-caps text-label-caps uppercase text-on-surface-variant">Scope</label>
           {usePicker ? (
-            <div className="rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm text-gray-600">
+            <div className="rounded border border-outline-variant bg-surface-container-low px-2 py-1.5 font-body-sm text-body-sm text-on-surface-variant">
               {scopeLabel || rule.scopeId || 'Not attached to a group yet'}
             </div>
           ) : (
             <input
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm font-mono"
+              className="w-full rounded border border-outline-variant bg-background px-2 py-1.5 font-code-sm text-code-sm text-on-surface focus:border-primary focus:outline-none"
               placeholder="order / lineItem / shipment / ..."
               value={rule.scopeId}
               onChange={(e) => setRule({ ...rule, scopeId: e.target.value })}
@@ -87,10 +87,10 @@ export function RuleForm({
       </div>
 
       <div>
-        <label className="text-xs font-medium text-gray-500">Kind</label>
+        <label className="font-label-caps text-label-caps uppercase text-on-surface-variant">Kind</label>
         <div className="flex gap-3 mt-1">
           {(['validation', 'derivation'] as const).map((k) => (
-            <label key={k} className="flex items-center gap-1.5 text-sm">
+            <label key={k} className="flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface">
               <input
                 type="radio"
                 checked={rule.kind === k}
@@ -105,7 +105,7 @@ export function RuleForm({
       {rule.kind === 'derivation' && (
         <>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Resolve</label>
+            <label className="mb-1 block font-label-caps text-label-caps uppercase text-on-surface-variant">Resolve</label>
             {usePicker ? (
               <ResolverSentencePicker
                 itemTree={itemTree!}
@@ -122,9 +122,9 @@ export function RuleForm({
             )}
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-500">Writes to (context key)</label>
+            <label className="font-label-caps text-label-caps uppercase text-on-surface-variant">Writes to (context key)</label>
             <input
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm font-mono"
+              className="w-full rounded border border-outline-variant bg-background px-2 py-1.5 font-code-sm text-code-sm text-on-surface focus:border-primary focus:outline-none"
               placeholder="e.g. documentType"
               value={rule.writesTo ?? ''}
               onChange={(e) => setRule({ ...rule, writesTo: e.target.value })}
@@ -136,7 +136,7 @@ export function RuleForm({
       {isValidation && (
         <>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Left (actual value)</label>
+            <label className="mb-1 block font-label-caps text-label-caps uppercase text-on-surface-variant">Left (actual value)</label>
             {usePicker ? (
               <ResolverSentencePicker
                 itemTree={itemTree!}
@@ -164,9 +164,9 @@ export function RuleForm({
           </div>
 
           <div>
-            <label className="text-xs font-medium text-gray-500">Comparator</label>
+            <label className="font-label-caps text-label-caps uppercase text-on-surface-variant">Comparator</label>
             <select
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+              className="w-full rounded border border-outline-variant bg-background px-2 py-1.5 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
               value={rule.evaluate?.comparator ?? 'equals'}
               onChange={(e) =>
                 setRule({
@@ -190,11 +190,11 @@ export function RuleForm({
           {(rule.evaluate?.comparator === 'withinTolerancePct' ||
             rule.evaluate?.comparator === 'withinToleranceAbs') && (
             <div>
-              <label className="text-xs font-medium text-gray-500">Tolerance</label>
+              <label className="font-label-caps text-label-caps uppercase text-on-surface-variant">Tolerance</label>
               <input
                 type="number"
                 step="0.01"
-                className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                className="w-full rounded border border-outline-variant bg-background px-2 py-1.5 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
                 value={rule.evaluate?.tolerance ?? 0}
                 onChange={(e) =>
                   setRule({
@@ -212,7 +212,7 @@ export function RuleForm({
           )}
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Right (comparison value)</label>
+            <label className="mb-1 block font-label-caps text-label-caps uppercase text-on-surface-variant">Right (comparison value)</label>
             {usePicker ? (
               <ResolverSentencePicker
                 itemTree={itemTree!}
@@ -255,9 +255,9 @@ export function RuleForm({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-500">Severity</label>
+              <label className="font-label-caps text-label-caps uppercase text-on-surface-variant">Severity</label>
               <select
-                className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                className="w-full rounded border border-outline-variant bg-background px-2 py-1.5 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
                 value={rule.severity ?? 'block'}
                 onChange={(e) => setRule({ ...rule, severity: e.target.value as Severity })}
               >
@@ -266,9 +266,9 @@ export function RuleForm({
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-500">Message</label>
+              <label className="font-label-caps text-label-caps uppercase text-on-surface-variant">Message</label>
               <input
-                className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                className="w-full rounded border border-outline-variant bg-background px-2 py-1.5 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
                 placeholder="Human-readable violation message"
                 value={rule.message ?? ''}
                 onChange={(e) => setRule({ ...rule, message: e.target.value })}
@@ -279,11 +279,11 @@ export function RuleForm({
       )}
 
       <div>
-        <label className="text-xs font-medium text-gray-500">
+        <label className="font-label-caps text-label-caps uppercase text-on-surface-variant">
           Applies when (JSON Logic, optional gate)
         </label>
         <textarea
-          className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm font-mono"
+          className="w-full rounded border border-outline-variant bg-background px-2 py-1.5 font-code-sm text-code-sm text-on-surface focus:border-primary focus:outline-none"
           rows={3}
           placeholder='{ "==": [{ "var": "documentType" }, "PO Invoice"] }'
           value={rule.appliesWhen ? JSON.stringify(rule.appliesWhen) : ''}
@@ -300,7 +300,7 @@ export function RuleForm({
       <button
         onClick={handleSave}
         disabled={saving}
-        className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        className="rounded bg-primary px-4 py-2 font-body-sm text-body-sm font-medium text-on-primary disabled:opacity-50"
       >
         {saving ? 'Saving…' : 'Save rule'}
       </button>

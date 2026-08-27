@@ -28,15 +28,15 @@ export default function FlowLayout({ children }: { children: React.ReactNode }) 
   const isExecutions = pathname?.includes('/executions');
 
   const linkClass = (active: boolean) =>
-    `text-sm ${active ? 'text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-900'}`;
+    `font-body-sm text-body-sm ${active ? 'font-medium text-on-surface' : 'text-on-surface-variant hover:text-on-surface'}`;
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex shrink-0 items-center gap-6 border-b border-gray-200 bg-white px-6 py-2.5">
-        <Link href={`/clients/${clientId}/flows`} className="text-sm text-gray-400 hover:text-gray-700">
+      <div className="flex shrink-0 items-center gap-6 border-b border-outline-variant bg-surface px-6 py-2.5">
+        <Link href={`/clients/${clientId}/flows`} className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface">
           &larr; All flows
         </Link>
-        <span className="text-sm font-medium text-gray-900">{flowName ?? '\u2026'}</span>
+        <span className="font-body-sm text-body-sm font-medium text-on-surface">{flowName ?? '\u2026'}</span>
         <div className="flex gap-4">
           <Link href={`/clients/${clientId}/flows/${flowId}/canvas`} className={linkClass(!!isCanvas)}>
             Canvas

@@ -19,10 +19,8 @@ import { getAuthorizationContext } from '@workspace/auth/server';
 import { createDb, dbConfigFromEnv, createClient, clients, organizations } from '@workspace/db';
 import { eq } from 'drizzle-orm';
 import { isDevBypassActive, warnBypass } from '@workspace/auth/devBypass';
-import { ArrowRight } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
-import { Card } from '../../../components/ui/card';
 
 export default async function OrgClientsPage({
   searchParams,
@@ -38,9 +36,9 @@ export default async function OrgClientsPage({
   if (isDevBypassActive()) {
     warnBypass('app/org/clients/page.tsx');
     return (
-      <div className="mx-auto max-w-2xl px-6 py-10">
-        <h1 className="mb-4 text-2xl font-semibold tracking-tight">Clients</h1>
-        <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-6 text-sm text-amber-800">
+      <div className="mx-auto max-w-2xl p-layout-margin">
+        <h1 className="mb-4 font-display-lg text-display-lg text-on-surface">Clients</h1>
+        <div className="rounded-lg border border-dashed border-tertiary/40 bg-tertiary-container/10 p-6 font-body-sm text-body-sm text-tertiary">
           DEV_BYPASS_AUTH is on - this page needs the real Aurora database, which bypass mode
           deliberately doesn't fake.
         </div>
@@ -60,9 +58,9 @@ export default async function OrgClientsPage({
 
   if (!targetOrg) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-10">
-        <h1 className="mb-1 text-2xl font-semibold tracking-tight">Clients</h1>
-        <p className="text-sm text-muted-foreground">
+      <div className="mx-auto max-w-2xl p-layout-margin">
+        <h1 className="mb-1 font-display-lg text-display-lg text-on-surface">Clients</h1>
+        <p className="font-body-sm text-body-sm text-on-surface-variant">
           You're a platform admin but don't administer a specific organization - see{' '}
           <Link href="/admin/organizations" className="underline">
             Admin
@@ -89,43 +87,63 @@ export default async function OrgClientsPage({
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
-      <h1 className="mb-1 text-2xl font-semibold tracking-tight">Clients</h1>
-      <p className="mb-6 text-sm text-muted-foreground">{targetOrg.organizationName}</p>
+    <div className="mx-auto max-w-2xl space-y-xl p-layout-margin">
+      <div>
+        <h1 className="font-display-lg text-display-lg text-on-surface">Clients</h1>
+        <p className="mt-xs font-body-sm text-body-sm text-on-surface-variant">{targetOrg.organizationName}</p>
+      </div>
 
-      <Card className="mb-6 p-4">
-        <form action={handleCreate} className="space-y-2">
+      <div className="rounded-lg border border-outline-variant bg-surface-container p-lg">
+        <form action={handleCreate} className="space-y-sm">
           <div className="flex gap-2">
             <Input name="name" placeholder="Client name (e.g. Modelflight)" className="flex-1" />
-            <Input name="tenantId" placeholder="tenantId (must match a deployed flow-engine stack)" className="flex-1 font-mono" />
+            <Input name="tenantId" placeholder="tenantId (must match a deployed flow-engine stack)" className="flex-1 font-code-sm text-code-sm" />
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="font-body-sm text-body-sm text-on-surface-variant">
             This only creates the metadata row - the actual flow-engine CDK stack for this tenantId still needs
             deploying separately (auto-provisioning is a deferred, not-yet-built piece).
           </p>
           <Button type="submit">Create</Button>
         </form>
-      </Card>
-
-      <div className="space-y-2">
-        {orgClients.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-12 text-center">
-            <p className="text-sm text-muted-foreground">No clients yet.</p>
-          </div>
-        ) : (
-          orgClients.map((client) => (
-            <Card key={client.id} className="flex items-center justify-between px-4 py-3">
-              <div>
-                <div className="text-sm font-medium">{client.name}</div>
-                <div className="text-xs text-muted-foreground">{client.tenantId}</div>
-              </div>
-              <Link href={`/clients/${client.tenantId}/flows`} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-                Open <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </Card>
-          ))
-        )}
       </div>
+
+      {orgClients.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-outline-variant p-12 text-center">
+          <p className="font-body-sm text-body-sm text-on-surface-variant">No clients yet.</p>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-outline-variant bg-surface-container">
+          <table className="w-full border-collapse text-left">
+            <thead className="border-b border-outline-variant bg-surface-container-low font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant">
+              <tr>
+                <th className="p-table-cell-padding font-medium">Client name</th>
+                <th className="p-table-cell-padding font-medium">Tenant ID</th>
+                <th className="p-table-cell-padding text-right font-medium">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant font-body-base text-body-base text-on-surface">
+              {orgClients.map((client) => (
+                <tr key={client.id} className="group transition-colors hover:bg-surface-container-highest">
+                  <td className="p-table-cell-padding font-medium">{client.name}</td>
+                  <td className="p-table-cell-padding">
+                    <span className="rounded border border-outline-variant bg-background px-1.5 py-0.5 font-code-sm text-code-sm text-on-surface-variant">
+                      {client.tenantId}
+                    </span>
+                  </td>
+                  <td className="p-table-cell-padding text-right">
+                    <Link
+                      href={`/clients/${client.tenantId}/flows`}
+                      className="inline-flex items-center gap-xs font-body-sm text-body-sm text-primary opacity-0 transition-opacity group-hover:opacity-100"
+                    >
+                      Open <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

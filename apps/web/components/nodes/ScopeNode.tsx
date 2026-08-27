@@ -30,24 +30,24 @@ export function ScopeNode({ id, data, selected }: NodeProps<ScopeNodeData>) {
     <div
       onClick={() => data.onEdit(id)}
       className={`group relative min-w-[170px] cursor-pointer rounded-lg border-2 px-4 py-2.5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 ${
-        isUnconfigured ? 'border-dashed border-indigo-300 bg-indigo-50/50' : 'bg-indigo-50 border-indigo-200'
-      } ${selected ? 'ring-2 ring-offset-1 ring-indigo-400' : ''}`}
+        isUnconfigured ? 'border-dashed border-primary/40 bg-primary-container/10' : 'bg-primary-container/15 border-primary/30'
+      } ${selected ? 'ring-2 ring-offset-1 ring-primary ring-offset-background' : ''}`}
     >
-      <div className="text-xs font-medium text-indigo-500 uppercase tracking-wide">Repeat for</div>
+      <div className="font-label-caps text-label-caps text-primary uppercase tracking-wide">Repeat for</div>
       {isUnconfigured ? (
-        <div className="text-sm italic text-indigo-400">Click to choose what to repeat over</div>
+        <div className="font-body-sm text-body-sm italic text-primary/70">Click to choose what to repeat over</div>
       ) : (
-        <div className="text-sm font-medium text-indigo-900">{data.label || data.scopeId}</div>
+        <div className="font-body-sm text-body-sm font-medium text-on-surface">{data.label || data.scopeId}</div>
       )}
-      <Handle type="target" position={Position.Top} className="!bg-indigo-500" />
-      <Handle type="source" position={Position.Bottom} className="!bg-indigo-500" />
+      <Handle type="target" position={Position.Top} className="!bg-primary" />
+      <Handle type="source" position={Position.Bottom} className="!bg-primary" />
 
       <button
         onClick={(e) => {
           e.stopPropagation();
           data.onQuickAddRule(id);
         }}
-        className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-indigo-300 bg-white px-2 py-0.5 text-xs font-medium text-indigo-600 opacity-0 shadow transition-opacity group-hover:opacity-100 hover:bg-indigo-50"
+        className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-primary/30 bg-surface-container px-2 py-0.5 font-body-sm text-body-sm font-medium text-primary opacity-0 shadow transition-opacity group-hover:opacity-100 hover:bg-surface-container-highest"
         title="Add a rule to this group"
       >
         + rule

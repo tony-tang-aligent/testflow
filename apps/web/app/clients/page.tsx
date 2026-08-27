@@ -17,8 +17,7 @@ import { redirect } from 'next/navigation';
 import { getAuthorizationContext } from '@workspace/auth/server';
 import { createDb, dbConfigFromEnv, getAccessibleClients, clients } from '@workspace/db';
 import { isDevBypassActive, warnBypass, DEV_BYPASS_CLIENT_ID } from '@workspace/auth/devBypass';
-import { ArrowRight } from 'lucide-react';
-import { Card } from '../../components/ui/card';
+
 
 export default async function ClientsPage() {
   const authz = await getAuthorizationContext();
@@ -56,8 +55,8 @@ export default async function ClientsPage() {
     // CloudWatch shows what's actually happening, instead of guessing again.
     console.error('Failed to load clients:', err);
     return (
-      <div className="mx-auto max-w-2xl p-6">
-        <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-8 text-center text-sm text-amber-800">
+      <div className="mx-auto max-w-2xl p-layout-margin">
+        <div className="rounded-lg border border-dashed border-tertiary/40 bg-tertiary-container/10 p-8 text-center font-body-sm text-body-sm text-tertiary">
           Can't reach the organization database right now - check server logs for the actual error
           (this message no longer assumes it's the SSR compute role specifically).
         </div>
@@ -71,33 +70,110 @@ export default async function ClientsPage() {
     redirect(`/clients/${accessibleClients[0].id}/flows`);
   }
 
+  const mostRecent = [...accessibleClients].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  )[0];
+
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
-      <h1 className="mb-1 text-2xl font-semibold tracking-tight">Clients</h1>
-      <p className="mb-6 text-sm text-muted-foreground">Pick which client's flows you want to work on.</p>
+    <div className="mx-auto max-w-[1200px] space-y-xl p-layout-margin">
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="font-display-lg text-display-lg text-on-surface">Clients</h1>
+          <p className="mt-xs font-body-sm text-body-sm text-on-surface-variant">
+            Pick which client's flows you want to work on.
+          </p>
+        </div>
+      </div>
+
+      {/* Only fields the schema actually tracks - name, tenant ID, created
+          date. The reference design's "Environment" / "Active Flows" /
+          "Status" / "Last Activity" columns don't correspond to anything
+          stored anywhere - fabricating them would look real and not be. */}
+      <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
+        <div className="rounded-xl border border-outline-variant bg-surface-container p-md">
+          <div className="flex items-start justify-between">
+            <span className="font-label-caps text-label-caps uppercase text-on-surface-variant">Total clients</span>
+            <span className="material-symbols-outlined text-[18px] text-outline">corporate_fare</span>
+          </div>
+          <div className="mt-sm font-headline-md text-headline-md text-on-surface">{accessibleClients.length}</div>
+        </div>
+        <div className="rounded-xl border border-outline-variant bg-surface-container p-md">
+          <div className="flex items-start justify-between">
+            <span className="font-label-caps text-label-caps uppercase text-on-surface-variant">Most recently added</span>
+            <span className="material-symbols-outlined text-[18px] text-outline">rocket_launch</span>
+          </div>
+          {mostRecent ? (
+            <>
+              <div className="mt-sm font-headline-md text-headline-md text-on-surface">{mostRecent.name}</div>
+              <div className="font-body-sm text-body-sm text-on-surface-variant">
+                {new Date(mostRecent.createdAt).toLocaleDateString()}
+              </div>
+            </>
+          ) : (
+            <div className="mt-sm font-body-sm text-body-sm text-on-surface-variant">None yet</div>
+          )}
+        </div>
+      </div>
 
       {accessibleClients.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center">
-          <p className="text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed border-outline-variant p-12 text-center">
+          <p className="font-body-sm text-body-sm text-on-surface-variant">
             You don't have access to any clients yet - ask your org admin to grant you access.
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {accessibleClients.map((client) => (
-            <Link key={client.id} href={`/clients/${client.id}/flows`}>
-              <Card className="flex items-center justify-between px-4 py-3 transition-shadow hover:shadow-md">
-                <span className="text-sm font-medium">{client.name}</span>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </Card>
-            </Link>
-          ))}
+        <div className="overflow-hidden rounded-lg border border-outline-variant bg-surface-container">
+          <table className="w-full border-collapse text-left">
+            <thead className="border-b border-outline-variant bg-surface-container-low font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant">
+              <tr>
+                <th className="p-table-cell-padding font-medium">Client name</th>
+                <th className="p-table-cell-padding font-medium">Tenant ID</th>
+                <th className="p-table-cell-padding font-medium">Created</th>
+                <th className="p-table-cell-padding text-right font-medium">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant font-body-base text-body-base text-on-surface">
+              {accessibleClients.map((client) => (
+                <tr key={client.id} className="group transition-colors hover:bg-surface-container-highest">
+                  <td className="p-table-cell-padding">
+                    <div className="flex items-center gap-sm">
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-variant">
+                        <span className="font-label-caps text-[10px] text-on-surface-variant">
+                          {client.name.slice(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                      <span className="font-medium">{client.name}</span>
+                    </div>
+                  </td>
+                  <td className="p-table-cell-padding">
+                    <span className="rounded border border-outline-variant bg-background px-1.5 py-0.5 font-code-sm text-code-sm text-on-surface-variant">
+                      {client.tenantId}
+                    </span>
+                  </td>
+                  <td className="p-table-cell-padding font-body-sm text-body-sm text-on-surface-variant">
+                    {new Date(client.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="p-table-cell-padding text-right">
+                    <Link
+                      href={`/clients/${client.id}/flows`}
+                      className="inline-flex items-center gap-xs font-body-sm text-body-sm text-primary opacity-0 transition-opacity group-hover:opacity-100"
+                    >
+                      Open <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
       {authz.isPlatformAdmin && (
-        <div className="mt-8 border-t pt-4">
-          <Link href="/admin/organizations" className="text-sm text-muted-foreground hover:text-foreground">
+        <div className="border-t border-outline-variant pt-lg">
+          <Link
+            href="/admin/organizations"
+            className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface"
+          >
             Platform admin: manage organizations →
           </Link>
         </div>

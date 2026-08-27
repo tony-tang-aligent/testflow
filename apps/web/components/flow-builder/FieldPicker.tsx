@@ -25,12 +25,12 @@ function TreeBranch({
       <button
         type="button"
         onClick={() => (hasChildren ? setOpen((o) => !o) : onPick(node.path))}
-        className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs hover:bg-gray-100"
+        className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left font-body-sm text-body-sm hover:bg-surface-container-highest"
         style={{ paddingLeft: 6 + depth * 12 }}
       >
-        {hasChildren && <span className="text-gray-400">{open ? '▾' : '▸'}</span>}
-        <span className={hasChildren ? 'font-medium text-gray-700' : 'text-gray-600'}>{node.label}</span>
-        {!hasChildren && <span className="ml-auto truncate text-gray-400">{node.preview}</span>}
+        {hasChildren && <span className="text-on-surface-variant">{open ? '▾' : '▸'}</span>}
+        <span className={hasChildren ? 'font-medium text-on-surface' : 'text-on-surface-variant'}>{node.label}</span>
+        {!hasChildren && <span className="ml-auto truncate font-code-sm text-code-sm text-on-surface-variant">{node.preview}</span>}
       </button>
       {hasChildren && open && (
         <div>
@@ -68,7 +68,7 @@ export function FieldPicker({
     <div className="relative">
       <div className="flex gap-1">
         <input
-          className="w-full rounded border border-gray-200 px-2 py-1.5 font-mono text-xs"
+          className="w-full rounded border border-outline-variant bg-background px-2 py-1.5 font-code-sm text-code-sm text-on-surface focus:border-primary focus:outline-none"
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -78,13 +78,13 @@ export function FieldPicker({
           onClick={() => setOpen((o) => !o)}
           disabled={!tree}
           title={tree ? 'Browse sample payload' : 'Set a sample payload first'}
-          className="shrink-0 rounded border border-gray-200 px-2 text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-40"
+          className="shrink-0 rounded border border-outline-variant px-2 text-body-sm text-on-surface-variant hover:bg-surface-variant disabled:opacity-40"
         >
           ⌄
         </button>
       </div>
       {open && tree && (
-        <div className="absolute z-20 mt-1 max-h-64 w-72 overflow-y-auto rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
+        <div className="absolute z-20 mt-1 max-h-64 w-72 overflow-y-auto rounded-lg border border-outline-variant bg-surface-container-high p-1 shadow-lg">
           <TreeBranch
             node={tree}
             onPick={(path) => {

@@ -26,10 +26,10 @@ export function FieldPickerButton({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`rounded border px-2.5 py-1 text-sm font-medium ${
+        className={`rounded border px-2.5 py-1 font-body-sm text-body-sm font-medium ${
           value
-            ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
-            : 'border-dashed border-gray-300 text-gray-400 hover:border-gray-400'
+            ? 'border-primary/30 bg-primary-container/10 text-primary'
+            : 'border-dashed border-outline-variant text-on-surface-variant hover:border-outline'
         }`}
       >
         {value || placeholder}

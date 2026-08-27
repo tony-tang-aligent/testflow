@@ -67,14 +67,14 @@ export function ResolverSentencePicker({
 
   return (
     <div className="space-y-2">
-      <div className="inline-flex rounded-md border border-gray-200 p-0.5 text-xs">
+      <div className="inline-flex rounded-md border border-outline-variant p-0.5 font-body-sm text-body-sm">
         {branchOptions.map((opt) => (
           <button
             key={opt.id}
             type="button"
             onClick={() => switchBranch(opt.id)}
             className={`rounded px-2 py-1 font-medium ${
-              branch === opt.id ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'
+              branch === opt.id ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-variant'
             }`}
           >
             {opt.label}
@@ -98,7 +98,7 @@ export function ResolverSentencePicker({
 
       {branch === 'static' && isStatic(value) && (
         <input
-          className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+          className="w-full rounded border border-outline-variant bg-background px-2 py-1.5 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
           placeholder="Type the fixed value"
           value={String(value.static ?? '')}
           onChange={(e) => onChange({ static: e.target.value })}
@@ -125,11 +125,11 @@ function ReferenceSentenceFields({
   const [matchLine, setMatchLine] = useState(!!value.refLineKey);
 
   return (
-    <div className="space-y-2 rounded-md border border-gray-200 bg-gray-50 p-2.5">
-      <div className="flex items-center gap-1.5 text-sm">
-        <span className="text-gray-500">Look up</span>
+    <div className="space-y-2 rounded-md border border-outline-variant bg-surface-container-low p-2.5">
+      <div className="flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface">
+        <span className="text-on-surface-variant">Look up</span>
         <select
-          className="rounded border border-gray-300 bg-white px-1.5 py-1 text-sm font-medium"
+          className="rounded border border-outline-variant bg-background px-1.5 py-1 font-body-sm text-body-sm font-medium text-on-surface"
           value={refType.value}
           onChange={(e) => onChange({ ...value, refType: e.target.value, path: '' })}
         >
@@ -139,7 +139,7 @@ function ReferenceSentenceFields({
             </option>
           ))}
         </select>
-        <span className="text-gray-500">using</span>
+        <span className="text-on-surface-variant">using</span>
       </div>
 
       <FieldPickerButton
@@ -150,7 +150,7 @@ function ReferenceSentenceFields({
         onChange={(node) => onChange({ ...value, refKey: node.path })}
       />
 
-      <label className="flex items-center gap-1.5 text-xs text-gray-500">
+      <label className="flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface-variant">
         <input
           type="checkbox"
           checked={matchLine}
@@ -172,11 +172,11 @@ function ReferenceSentenceFields({
         />
       )}
 
-      <div className="flex items-center gap-1.5 text-sm">
-        <span className="text-gray-500">then read</span>
+      <div className="flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface">
+        <span className="text-on-surface-variant">then read</span>
         <input
           list={`ref-fields-${refType.value}`}
-          className="rounded border border-gray-300 px-2 py-1 text-sm font-mono"
+          className="rounded border border-outline-variant bg-background px-2 py-1 font-code-sm text-code-sm text-on-surface focus:border-primary focus:outline-none"
           placeholder="field name"
           value={value.path ?? ''}
           onChange={(e) => onChange({ ...value, path: e.target.value })}

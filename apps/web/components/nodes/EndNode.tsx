@@ -10,8 +10,8 @@ import { Handle, Position } from 'reactflow';
 
 export function EndNode() {
   return (
-    <div className="rounded-full border-2 border-gray-900 bg-white px-5 py-2 text-sm font-medium text-gray-900 shadow-sm">
-      <Handle type="target" position={Position.Top} className="!bg-gray-900" />
+    <div className="rounded-full border-2 border-primary bg-surface px-5 py-2 font-body-sm text-body-sm font-medium text-on-surface shadow-sm">
+      <Handle type="target" position={Position.Top} className="!bg-primary" />
       Aggregate &amp; end
     </div>
   );

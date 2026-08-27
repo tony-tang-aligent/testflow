@@ -107,15 +107,15 @@ function SamplePayloadForm({
   return (
     <div>
       <textarea
-        className="h-64 w-full rounded border border-gray-300 p-3 font-mono text-xs"
+        className="h-64 w-full rounded border border-outline-variant bg-background p-3 font-code-sm text-code-sm text-on-surface focus:border-primary focus:outline-none"
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 font-body-sm text-body-sm text-error">{error}</p>}
       <button
         onClick={handleSave}
         disabled={saving}
-        className="mt-4 rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        className="mt-4 rounded bg-primary px-4 py-2 font-body-sm text-body-sm font-medium text-on-primary disabled:opacity-50"
       >
         {saving ? 'Saving\u2026' : ctaLabel}
       </button>
@@ -133,9 +133,9 @@ function SamplePayloadOnboarding({
   onSaved: (payload: Record<string, unknown>) => void;
 }) {
   return (
-    <div className="mx-auto max-w-2xl p-8">
-      <h1 className="text-lg font-medium">Let's start with a real example</h1>
-      <p className="mt-1 text-sm text-gray-600">
+    <div className="mx-auto max-w-2xl p-layout-margin">
+      <h1 className="font-display-lg text-display-lg text-on-surface">Let's start with a real example</h1>
+      <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
         Paste one real order payload below. Every field you'll pick from later - which items to repeat
         over, which values to compare - comes from this example, so you never have to type a raw field
         path from memory.
@@ -254,7 +254,7 @@ function CanvasInner({
     // scope genuinely does nothing.
     setEdges((eds) => [
       ...eds,
-      { id: `start-${id}`, source: START_ID, target: id, style: { stroke: '#9ca3af' }, deletable: false },
+      { id: `start-${id}`, source: START_ID, target: id, style: { stroke: '#908fa0' }, deletable: false },
     ]);
     setEditingNodeId(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -288,10 +288,10 @@ function CanvasInner({
           source: scopeNodeId,
           target: ruleNodeId,
           type: 'membership',
-          style: { stroke: '#6366f1' },
+          style: { stroke: '#c0c1ff' },
           data: { onDelete: handleDeleteEdge },
         },
-        { id: `end-${ruleNodeId}`, source: ruleNodeId, target: END_ID, style: { stroke: '#9ca3af' }, deletable: false },
+        { id: `end-${ruleNodeId}`, source: ruleNodeId, target: END_ID, style: { stroke: '#908fa0' }, deletable: false },
       ]);
       setEditingNodeId(ruleNodeId);
     },
@@ -370,7 +370,7 @@ function CanvasInner({
           source: `scope:${r.scopeId}`,
           target: `rule:${r.ruleId}`,
           type: 'membership',
-          style: { stroke: '#6366f1' },
+          style: { stroke: '#c0c1ff' },
           data: { onDelete: handleDeleteEdge },
         }));
 
@@ -385,7 +385,7 @@ function CanvasInner({
               id: `dep-${source.ruleId}-${target.ruleId}`,
               source: `rule:${source.ruleId}`,
               target: `rule:${target.ruleId}`,
-              style: { stroke: '#9ca3af', strokeDasharray: '4 3' },
+              style: { stroke: '#908fa0', strokeDasharray: '4 3' },
               label: 'gates',
               deletable: false,
             });
@@ -397,14 +397,14 @@ function CanvasInner({
         id: `start-${s.id}`,
         source: START_ID,
         target: s.id,
-        style: { stroke: '#9ca3af' },
+        style: { stroke: '#908fa0' },
         deletable: false,
       }));
       const endEdges: Edge[] = ruleNodes.map((r) => ({
         id: `end-${r.id}`,
         source: r.id,
         target: END_ID,
-        style: { stroke: '#9ca3af' },
+        style: { stroke: '#908fa0' },
         deletable: false,
       }));
 
@@ -425,7 +425,7 @@ function CanvasInner({
           ...connection,
           id: `member-${connection.target?.replace('rule:', '')}`,
           type: 'membership',
-          style: { stroke: '#6366f1' },
+          style: { stroke: '#c0c1ff' },
           data: { onDelete: handleDeleteEdge },
         } as Edge,
       ]);
@@ -617,7 +617,7 @@ function CanvasInner({
       const data = editingNode.data as ScopeNodeData;
       return (
         <div className="space-y-3">
-          <p className="text-sm text-gray-600">
+          <p className="font-body-sm text-body-sm text-on-surface-variant">
             Choose what this group of rules should repeat over - pick an array field (like line items or
             shipments) to run the rules once per entry, or the whole order to run them once.
           </p>
@@ -633,10 +633,10 @@ function CanvasInner({
               updateNodeData(editingNode.id, { scopeId, itemsPath: node.path, label });
             }}
           />
-          <div className="border-t border-gray-100 pt-3">
+          <div className="border-t border-outline-variant pt-3">
             <button
               onClick={() => handleDeleteScopeNode(editingNode.id)}
-              className="text-xs text-red-600 hover:text-red-700 hover:underline"
+              className="font-body-sm text-body-sm text-error hover:underline"
             >
               Delete this group
             </button>
@@ -661,10 +661,10 @@ function CanvasInner({
               setEditingNodeId(null);
             }}
           />
-          <div className="border-t border-gray-100 pt-3">
+          <div className="border-t border-outline-variant pt-3">
             <button
               onClick={() => handleDeleteRuleNode(editingNode.id)}
-              className="text-xs text-red-600 hover:text-red-700 hover:underline"
+              className="font-body-sm text-body-sm text-error hover:underline"
             >
               Delete this rule
             </button>
@@ -677,7 +677,7 @@ function CanvasInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingNode, nodes, edges, handleDeleteRuleNode, handleDeleteScopeNode]);
 
-  if (loading) return <p className="p-6 text-sm text-gray-500">Loading canvas…</p>;
+  if (loading) return <p className="p-6 font-body-sm text-body-sm text-on-surface-variant">Loading canvas…</p>;
 
   return (
     <div className="flex h-full">
@@ -685,18 +685,18 @@ function CanvasInner({
         <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
           {testResult && (
             <span
-              className={`flex items-center gap-2 rounded px-3 py-1.5 text-sm font-medium shadow ${
+              className={`flex items-center gap-2 rounded px-3 py-1.5 font-body-sm text-body-sm font-medium shadow ${
                 testResult.error
-                  ? 'bg-red-50 text-red-700'
+                  ? 'bg-error-container/20 text-error'
                   : testResult.status === 'failed'
-                    ? 'bg-red-50 text-red-700'
+                    ? 'bg-error-container/20 text-error'
                     : testResult.status === 'needs_review'
-                      ? 'bg-blue-50 text-blue-700'
+                      ? 'bg-primary-container/20 text-primary'
                       : testResult.status === 'warned'
-                        ? 'bg-amber-50 text-amber-700'
+                        ? 'bg-tertiary-container/20 text-tertiary'
                         : testResult.status === 'passed'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-gray-100 text-gray-600'
+                          ? 'bg-secondary-container/20 text-secondary'
+                          : 'bg-surface-variant text-on-surface-variant'
               }`}
             >
               {testResult.error
@@ -720,8 +720,8 @@ function CanvasInner({
           )}
           {saveMessage && (
             <span
-              className={`rounded px-3 py-1.5 text-sm font-medium shadow ${
-                saveMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+              className={`rounded px-3 py-1.5 font-body-sm text-body-sm font-medium shadow ${
+                saveMessage.type === 'success' ? 'bg-secondary-container/20 text-secondary' : 'bg-error-container/20 text-error'
               }`}
             >
               {saveMessage.type === 'success' ? '\u2713 ' : ''}
@@ -730,21 +730,21 @@ function CanvasInner({
           )}
           <button
             onClick={() => setEditingSamplePayload(true)}
-            className="rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow hover:bg-gray-50"
+            className="rounded border border-outline-variant bg-surface px-4 py-2 font-body-sm text-body-sm font-medium text-on-surface shadow hover:bg-surface-variant"
           >
             Flow settings
           </button>
           <button
             onClick={handleTestNow}
             disabled={testing || saving}
-            className="rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow hover:bg-gray-50 disabled:opacity-50"
+            className="rounded border border-outline-variant bg-surface px-4 py-2 font-body-sm text-body-sm font-medium text-on-surface shadow hover:bg-surface-variant disabled:opacity-50"
           >
             {testing ? 'Testing\u2026' : 'Test now'}
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow disabled:opacity-50"
+            className="rounded bg-primary px-4 py-2 font-body-sm text-body-sm font-medium text-on-primary shadow disabled:opacity-50"
           >
             {saving ? 'Saving\u2026' : 'Save flow'}
           </button>
@@ -769,23 +769,23 @@ function CanvasInner({
       {editingSamplePayload && (
         <SidePanel title="Flow settings" onClose={() => setEditingSamplePayload(false)}>
           <div className="mb-5">
-            <label className="mb-1 block text-xs font-medium text-gray-500">ERP adapter</label>
+            <label className="mb-1 block font-label-caps text-label-caps uppercase text-on-surface-variant">ERP adapter</label>
             <select
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+              className="w-full rounded border border-outline-variant bg-background px-2 py-1.5 font-body-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
               value={adapterId}
               onChange={(e) => onAdapterIdChange(e.target.value)}
             >
               <option value="mock">Mock (in-memory test data)</option>
               <option value="myob-advanced">MYOB Advanced (not implemented yet)</option>
             </select>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
               Takes effect on the next "Save flow" click. Only Mock actually works right now - MYOB
               Advanced is a stub; selecting it will make executions fail with a clear error until it's
               implemented.
             </p>
           </div>
-          <div className="border-t border-gray-100 pt-4">
-            <p className="mb-3 text-sm text-gray-600">
+          <div className="border-t border-outline-variant pt-4">
+            <p className="mb-3 font-body-sm text-body-sm text-on-surface-variant">
               Updating the example payload doesn't change any saved rules - it only changes what the field
               pickers show you going forward. If a rule references a field that no longer exists in the new
               example, it'll still run against the real payload at execution time; only the picker's preview
@@ -831,7 +831,7 @@ export default function CanvasPage() {
       .catch(() => setSamplePayload(null));
   }, [clientId, flowId]);
 
-  if (samplePayload === undefined) return <p className="p-6 text-sm text-gray-500">Loading…</p>;
+  if (samplePayload === undefined) return <p className="p-6 font-body-sm text-body-sm text-on-surface-variant">Loading…</p>;
   if (samplePayload === null)
     return <SamplePayloadOnboarding clientId={clientId} flowId={flowId} onSaved={setSamplePayload} />;
 

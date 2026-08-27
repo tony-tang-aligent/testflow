@@ -22,23 +22,39 @@ export default function ExecutionsPage() {
   }, [clientId, flowId, statusFilter]);
 
   return (
-    <div className="max-w-3xl p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-medium">Executions</h1>
-        <select
-          className="rounded border border-gray-300 px-2 py-1.5 text-sm"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="">All statuses</option>
-          <option value="needs_review">Needs review</option>
-          <option value="passed">Passed</option>
-          <option value="warned">Warned</option>
-          <option value="failed">Failed</option>
-        </select>
+    <div className="mx-auto max-w-4xl space-y-lg p-layout-margin">
+      <div>
+        <h1 className="font-display-lg text-display-lg text-on-surface">Logs</h1>
+        <p className="mt-xs font-body-sm text-body-sm text-on-surface-variant">Validation runs for this flow</p>
       </div>
 
-      {loading ? <p className="text-sm text-gray-500">Loading…</p> : <ExecutionTable executions={executions} />}
+      {/* Only a real, functional filter - status, already wired to the API.
+          The reference design's "All Clients" filter and "Live Stream
+          Active" indicator don't apply: this page is already scoped to one
+          client/flow via the URL, and nothing here streams in real time -
+          it's a plain fetch on mount/filter-change, not a live socket. */}
+      <div className="flex flex-wrap items-center gap-md rounded-lg border border-outline-variant bg-surface-container-low p-md">
+        <div className="flex items-center gap-sm rounded border border-outline-variant bg-surface-container px-sm py-xs">
+          <span className="material-symbols-outlined text-[16px] text-on-surface-variant">filter_list</span>
+          <select
+            className="h-auto border-none bg-transparent p-0 font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-0"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">Status: All</option>
+            <option value="needs_review">Needs review</option>
+            <option value="passed">Passed</option>
+            <option value="warned">Warned</option>
+            <option value="failed">Failed</option>
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <p className="font-body-sm text-body-sm text-on-surface-variant">Loading…</p>
+      ) : (
+        <ExecutionTable executions={executions} />
+      )}
     </div>
   );
 }

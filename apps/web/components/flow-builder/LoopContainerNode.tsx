@@ -1,10 +1,10 @@
 // apps/web/components/flow-builder/LoopContainerNode.tsx
 //
-// The actual UX fix - repeatForEach now renders as a large, resizable
-// container instead of a small fixed-size card. Dragging another node inside
-// this visual boundary (handled in the canvas page's onNodeDragStop) is what
-// sets that node's parentId, making loop membership something you can see,
-// not something you'd have to trace edges to figure out.
+// Matches the design spec's own loop-container treatment exactly
+// (surface-container-lowest + dashed outline + a floating label chip), not
+// a generic amber-tinted box - the spec already designed this pattern, this
+// just ports it in. Material Symbols "repeat" icon instead of an emoji, for
+// consistency with the rest of this icon system.
 //
 // Deliberately only a TARGET handle, no source handle - the compiler now
 // derives "what happens after the loop" from a CHILD's own outgoing edge to
@@ -37,25 +37,23 @@ export function LoopContainerNode({ data }: { data: LoopContainerData }) {
         minHeight={220}
         handleStyle={{ width: 8, height: 8 }}
       />
-      <Handle type="target" position={Position.Top} className="!bg-gray-300" />
+      <Handle type="target" position={Position.Top} className="!bg-outline" />
 
       <div
-        className={`h-full w-full rounded-xl border-2 border-dashed bg-amber-50/40 ${
-          data.hasError ? 'border-red-400' : 'border-amber-300'
+        className={`relative h-full w-full rounded-lg border border-dashed bg-surface-container-lowest ${
+          data.hasError ? 'border-error' : 'border-outline'
         }`}
         style={data.hasError ? { animation: 'flowNodePulse 1.8s ease-in-out infinite' } : undefined}
       >
-        <div className="flex items-center gap-1.5 border-b-2 border-dashed border-amber-300 bg-amber-100/60 px-3 py-1.5">
-          <span className="text-sm">🔁</span>
-          <span className="text-xs font-semibold uppercase tracking-wide text-amber-800">Repeat For Each</span>
-          <span className="ml-1 rounded bg-white/70 px-1.5 py-0.5 font-mono text-[11px] text-amber-900">
-            {arrayPath}
-          </span>
+        <div className="absolute -top-3 left-4 flex items-center gap-1 rounded border border-outline-variant bg-background px-2 font-label-caps text-label-caps text-on-surface-variant">
+          <span className="material-symbols-outlined text-[14px]">repeat</span>
+          Loop: repeatForEach
         </div>
+        <div className="px-4 pt-6 font-code-sm text-code-sm text-on-surface-variant">{arrayPath}</div>
       </div>
 
       {data.hasError && (
-        <div className="absolute -bottom-7 left-0 right-0 rounded bg-red-50 px-2 py-1 text-center text-xs text-red-600">
+        <div className="absolute -bottom-7 left-0 right-0 rounded bg-error-container/20 px-2 py-1 text-center font-body-sm text-body-sm text-error">
           {data.errorMessage}
         </div>
       )}

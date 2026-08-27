@@ -19,7 +19,6 @@ import { createDb, dbConfigFromEnv, createOrganization, organizations } from '@w
 import { isDevBypassActive, warnBypass } from '@workspace/auth/devBypass';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
-import { Card } from '../../../components/ui/card';
 
 export default async function OrganizationsPage() {
   const authz = await getAuthorizationContext();
@@ -32,9 +31,9 @@ export default async function OrganizationsPage() {
   if (isDevBypassActive()) {
     warnBypass('app/admin/organizations/page.tsx');
     return (
-      <div className="mx-auto max-w-2xl px-6 py-10">
-        <h1 className="mb-4 text-2xl font-semibold tracking-tight">Organizations</h1>
-        <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-6 text-sm text-amber-800">
+      <div className="mx-auto max-w-2xl p-layout-margin">
+        <h1 className="mb-4 font-display-lg text-display-lg text-on-surface">Organizations</h1>
+        <div className="rounded-lg border border-dashed border-tertiary/40 bg-tertiary-container/10 p-6 font-body-sm text-body-sm text-tertiary">
           DEV_BYPASS_AUTH is on - this page needs the real Aurora database, which bypass mode
           deliberately doesn't fake. Deploy IdentityStack and unset DEV_BYPASS_AUTH to use this page.
         </div>
@@ -59,23 +58,35 @@ export default async function OrganizationsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">Organizations</h1>
+    <div className="mx-auto max-w-2xl space-y-xl p-layout-margin">
+      <h1 className="font-display-lg text-display-lg text-on-surface">Organizations</h1>
 
-      <form action={handleCreate} className="mb-6 flex gap-2">
+      <form action={handleCreate} className="flex gap-2">
         <Input name="name" placeholder="Organization name (e.g. Aligent)" className="flex-1" />
         <Button type="submit">Create</Button>
       </form>
 
-      <div className="space-y-2">
-        {orgs.map((org) => (
-          <Link key={org.id} href={`/org/clients?orgId=${org.id}`}>
-            <Card className="px-4 py-3 transition-shadow hover:shadow-md">
-              <div className="text-sm font-medium">{org.name}</div>
-              <div className="text-xs text-muted-foreground">{org.id}</div>
-            </Card>
-          </Link>
-        ))}
+      <div className="overflow-hidden rounded-lg border border-outline-variant bg-surface-container">
+        <table className="w-full border-collapse text-left">
+          <thead className="border-b border-outline-variant bg-surface-container-low font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant">
+            <tr>
+              <th className="p-table-cell-padding font-medium">Organization</th>
+              <th className="p-table-cell-padding font-medium">ID</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-outline-variant font-body-base text-body-base text-on-surface">
+            {orgs.map((org) => (
+              <tr key={org.id} className="transition-colors hover:bg-surface-container-highest">
+                <td className="p-table-cell-padding">
+                  <Link href={`/org/clients?orgId=${org.id}`} className="font-medium text-primary hover:underline">
+                    {org.name}
+                  </Link>
+                </td>
+                <td className="p-table-cell-padding font-code-sm text-code-sm text-on-surface-variant">{org.id}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

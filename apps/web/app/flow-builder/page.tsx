@@ -1,22 +1,19 @@
 // apps/web/app/flow-builder/page.tsx
 //
-// Complete redesign with the shadcn foundation - Card for each draft row
-// (real elevation/border tokens instead of ad-hoc gray-200/shadow-sm pairs),
-// Button for every action, Badge for the "Published" marker. All the
-// underlying fetch/create logic is completely unchanged - this is purely
-// the visual layer.
+// M3 dark tokens, matching Overview's own table pattern for consistency -
+// Button/Badge already remapped to M3 (see tailwind.config.js's token
+// system), so no change needed to those imports. All fetch/create logic
+// unchanged - visual layer only.
 
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight, Plus } from 'lucide-react';
 import { flowBuilderApi } from '../../lib/flowBuilderApi';
 import type { FlowGraph } from '@workspace/flow-compiler';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { Card } from '../../components/ui/card';
 
 const DOCUMENT_TYPES = ['Order', 'Invoice'];
 
@@ -55,26 +52,28 @@ export default function FlowBuilderDashboard() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
-      <div className="mb-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-        <Link href="/flow-builder" className="hover:text-foreground">
-          Dashboard
-        </Link>
-        <span>/</span>
-        <span className="text-foreground">Flow Builder</span>
+    <div className="mx-auto max-w-3xl space-y-xl p-layout-margin">
+      <div>
+        <div className="mb-1 flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface-variant">
+          <Link href="/flow-builder" className="hover:text-on-surface">
+            Dashboard
+          </Link>
+          <span>/</span>
+          <span className="text-on-surface">Flow Builder</span>
+        </div>
+        <h1 className="font-display-lg text-display-lg text-on-surface">Flows</h1>
       </div>
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">Flows</h1>
 
-      <div className="mb-6 flex items-center justify-between">
-        <div className="inline-flex rounded-lg border bg-muted p-1">
+      <div className="flex items-center justify-between">
+        <div className="inline-flex rounded-lg border border-outline-variant bg-surface-container-low p-1">
           {DOCUMENT_TYPES.map((dt) => (
             <button
               key={dt}
               onClick={() => setDocumentType(dt)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`rounded-md px-3 py-1.5 font-body-sm text-body-sm font-medium transition-colors ${
                 documentType === dt
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-surface-container-high text-on-surface shadow-sm'
+                  : 'text-on-surface-variant hover:text-on-surface'
               }`}
             >
               {dt}
@@ -82,44 +81,53 @@ export default function FlowBuilderDashboard() {
           ))}
         </div>
         <Button onClick={handleCreate} disabled={creating}>
-          <Plus className="mr-1.5 h-4 w-4" />
+          <span className="material-symbols-outlined mr-1.5 text-[16px]">add</span>
           {creating ? 'Creating…' : 'New draft'}
         </Button>
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="font-body-sm text-body-sm text-on-surface-variant">Loading…</p>
       ) : drafts.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center">
-          <p className="text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed border-outline-variant p-12 text-center">
+          <p className="font-body-sm text-body-sm text-on-surface-variant">
             No draft flows for {documentType} yet - create one to get started.
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {drafts.map((draft) => {
-            const isPublished = draft.flowId === publishedFlowId;
-            return (
-              <Link key={draft.flowId} href={`/flow-builder/${draft.flowId}`}>
-                <Card
-                  className={`flex items-center justify-between px-4 py-3 transition-shadow hover:shadow-md ${
-                    isPublished ? 'border-emerald-300 ring-1 ring-emerald-100' : ''
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{draft.flowId}</span>
-                      {isPublished && <Badge variant="success">Published</Badge>}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {draft.nodes.length} node{draft.nodes.length === 1 ? '' : 's'}
-                    </div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </Card>
-              </Link>
-            );
-          })}
+        <div className="overflow-hidden rounded-lg border border-outline-variant bg-surface-container">
+          <table className="w-full border-collapse text-left">
+            <thead className="border-b border-outline-variant bg-surface-container-low font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant">
+              <tr>
+                <th className="p-table-cell-padding font-medium">Flow ID</th>
+                <th className="p-table-cell-padding font-medium">Nodes</th>
+                <th className="p-table-cell-padding text-right font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant font-body-base text-body-base text-on-surface">
+              {drafts.map((draft) => {
+                const isPublished = draft.flowId === publishedFlowId;
+                return (
+                  <tr key={draft.flowId} className="transition-colors hover:bg-surface-container-highest">
+                    <td className="p-table-cell-padding">
+                      <Link
+                        href={`/flow-builder/${draft.flowId}`}
+                        className="font-code-sm text-code-sm text-primary hover:underline"
+                      >
+                        {draft.flowId}
+                      </Link>
+                    </td>
+                    <td className="p-table-cell-padding font-code-sm text-code-sm text-on-surface-variant">
+                      {draft.nodes.length}
+                    </td>
+                    <td className="p-table-cell-padding text-right">
+                      {isPublished ? <Badge variant="success">Published</Badge> : <Badge variant="secondary">Draft</Badge>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
