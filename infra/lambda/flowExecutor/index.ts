@@ -82,28 +82,51 @@ async function runAction(nodeType: string, config: Record<string, unknown>, item
         subject: interpolate(String(config.subject ?? ''), item),
         body: interpolate(String(config.body ?? ''), item),
       });
-      return;
+      return { acknowledged: true };
     case 'slackAlert':
       console.log('slackAlert (stub):', {
         channel: config.channel,
         message: interpolate(String(config.message ?? ''), item),
       });
-      return;
+      return { acknowledged: true };
     case 'httpCall': {
       // Real request now, not a bare fetch(url) with no headers/body/auth -
       // built via the SAME resolver the "send test request" button uses, so
       // testing a request and actually sending it can never diverge.
       const request = await resolveHttpRequest(config as HttpActionConfig, item);
-      await fetch(request.url, { method: request.method, headers: request.headers, body: request.body }).catch(
-          (err) => console.error('httpCall action failed (fire-and-forget, not retried):', err),
-      );
-      return;
+      try {
+        const response = await fetch(request.url, {
+          method: request.method,
+          headers: request.headers,
+          body: request.body,
+        });
+        const bodyText = await response.text();
+        // Captured into $.actionResults.<nodeId> by the compiler's
+        // ResultPath - this return value IS what a later node's field picker
+        // path like "actionResults.httpCall_123.body.someField" resolves
+        // against. Attempting JSON.parse so a later check can reference a
+        // nested field directly, not just the raw response text.
+        let parsedBody: unknown = bodyText;
+        try {
+          parsedBody = JSON.parse(bodyText);
+        } catch {
+          // Not JSON - leave as raw text, still usable, just not nestable.
+        }
+        return { status: response.status, ok: response.ok, body: parsedBody };
+      } catch (err) {
+        // Still fire-and-forget in the sense that a failed call doesn't stop
+        // the flow (no error thrown), but now the failure itself is visible
+        // to a later node via actionResults, not silently swallowed.
+        console.error('httpCall action failed:', err);
+        return { status: 0, ok: false, error: (err as Error).message };
+      }
     }
     case 'lambdaInvoke':
       console.log('lambdaInvoke (stub):', { functionArn: config.functionArn });
-      return;
+      return { acknowledged: true };
     default:
       console.log(`Unrecognized action node type ${nodeType} - no-op.`);
+      return { acknowledged: true };
   }
 }
 
@@ -145,8 +168,7 @@ export const handler = async (event: ExecutorEvent) => {
     case 'slackAlert':
     case 'httpCall':
     case 'lambdaInvoke':
-      await runAction(event.nodeType, config, item);
-      return { acknowledged: true };
+      return runAction(event.nodeType, config, item);
 
     default:
       throw new Error(`flowExecutor: unhandled node type ${event.nodeType}`);

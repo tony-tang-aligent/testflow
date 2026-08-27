@@ -32,12 +32,14 @@ interface TestResponse {
 }
 
 export function NodeConfigPanel({
+                                    nodeId,
                                     nodeType,
                                     config,
                                     onConfigChange,
                                     onDelete,
                                     samplePayload,
                                 }: {
+    nodeId: string;
     nodeType: string;
     config: Record<string, unknown>;
     onConfigChange: (patch: Record<string, unknown>) => void;
@@ -78,6 +80,21 @@ export function NodeConfigPanel({
                     Delete node
                 </button>
             </div>
+
+            {def.canHaveOutput && def.category === 'action' && (
+                <div className="mb-4 rounded bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                    A later node can reference this response by hand as{' '}
+                    <button
+                        onClick={() => navigator.clipboard.writeText(`actionResults.${nodeId}.body`)}
+                        className="rounded bg-white px-1 py-0.5 font-mono text-[11px] hover:bg-blue-100"
+                        title="Copy to clipboard"
+                    >
+                        actionResults.{nodeId}.body
+                    </button>{' '}
+                    (plus a nested field, e.g. <code className="font-mono">.someField</code>) - no picker support for
+                    browsing an actual response shape yet, since it's only known after you send a test request.
+                </div>
+            )}
 
             <div className="space-y-4">
                 {def.configFields.length === 0 && (

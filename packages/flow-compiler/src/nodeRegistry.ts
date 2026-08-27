@@ -92,7 +92,13 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     category: 'action',
     label: 'HTTP Request',
     description: 'Calls an external API with a mapped request - method, auth, headers, and body all configurable, and testable before you publish.',
-    canHaveOutput: false,
+    // Unlike every other action node, this one CAN have output - its
+    // response is captured into $.actionResults.<nodeId> so a later check
+    // can compare a field from it against the original payload. Every other
+    // action (email/Slack/Lambda invoke) stays genuinely terminal - "we
+    // don't care what's going out" still holds for those, this is the one
+    // exception where the response is the whole point of calling it.
+    canHaveOutput: true,
     branches: false,
     configFields: [
       { key: 'method', label: 'Method', kind: 'select', options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] },

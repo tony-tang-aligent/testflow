@@ -96,7 +96,14 @@ function compileChain(
       states[node.id] = {
         Type: 'Task',
         Resource: resourceArnFor(node.type),
-        Parameters: { nodeId: node.id, nodeType: node.type, config: node.config, 'item.$': '$$.Execution.Input' },
+        // '$', not '$$.Execution.Input' - the latter is a fixed snapshot of
+        // the ORIGINAL execution input, frozen for the whole run; it never
+        // reflects anything an earlier node wrote via its own ResultPath.
+        // Switching to '$' is safe (nothing ever mutates $.payload itself,
+        // only adds new sibling keys like checkResults/actionResults) and is
+        // what actually lets a check compare a field from the original
+        // payload against an earlier httpCall's captured response.
+        Parameters: { nodeId: node.id, nodeType: node.type, config: node.config, 'item.$': '$' },
         ResultPath: resultKey,
         Next: failEdge ? taskName + '_Choice' : (continueName ?? taskName),
         ...(continueName ? {} : { End: !failEdge }),
@@ -179,11 +186,20 @@ function compileChain(
 
     default: {
       if (def.category !== 'action') throw new Error(`Compiler: unhandled node type ${node.type}`);
+      // Every action node's own return value is captured into
+      // $.actionResults.<nodeId> regardless of whether anything continues
+      // from it - harmless for the fire-and-forget ones (just a small
+      // {acknowledged:true} marker), and what actually makes httpCall's
+      // response available to a later check when it IS wired to continue
+      // (only httpCall has canHaveOutput:true - see nodeRegistry.ts).
+      const next = outgoing(graph, node.id)[0];
+      const nextName = next ? compileChain(graph, next.target, states, boundaryNodeIds) : undefined;
       states[node.id] = {
         Type: 'Task',
         Resource: resourceArnFor(node.type),
-        Parameters: { nodeId: node.id, nodeType: node.type, config: node.config, 'item.$': '$$.Execution.Input' },
-        End: true,
+        Parameters: { nodeId: node.id, nodeType: node.type, config: node.config, 'item.$': '$' },
+        ResultPath: `$.actionResults.${node.id}`,
+        ...(nextName ? { Next: nextName } : { End: true }),
       };
       return node.id;
     }

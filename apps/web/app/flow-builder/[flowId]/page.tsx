@@ -401,6 +401,7 @@ function CanvasInner() {
         {selectedNode && (
             <SidePanel title={getNodeType(selectedNode.data.nodeType).label} onClose={() => setSelectedId(null)}>
               <NodeConfigPanel
+                  nodeId={selectedNode.id}
                   nodeType={selectedNode.data.nodeType}
                   config={selectedNode.data.config}
                   onConfigChange={(patch) => updateNodeConfig(selectedNode.id, patch)}
