@@ -56,7 +56,7 @@ export function NodeConfigPanel({
             const result = await flowBuilderApi.testHttpAction(config, samplePayload ?? {});
             setTestResult(result);
         } catch (err) {
-            setTestResult({ request: { url: '', method: '' }, error: (err as Error).message });
+            setTestResult({ request: { url: '', method: '', headers: {} }, error: (err as Error).message });
         } finally {
             setSending(false);
         }
