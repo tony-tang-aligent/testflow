@@ -8,6 +8,9 @@
 // httpCall gets one extra thing every other node type doesn't: a Postman-
 // style "Send test request" panel, using the exact same resolver the real
 // executor uses server-side (infra/lambda/flowBuilderShared/httpActionResolver.ts).
+// A successful test also captures the response shape (onCaptureResponse) so
+// OTHER nodes' field pickers can browse into it afterward - the actual fix
+// for "the response shape is unknowable before you've ever called it."
 
 import React, { useState } from 'react';
 import { getNodeType, NodeCategory, KeyValueRow } from '@workspace/flow-compiler';
@@ -38,6 +41,8 @@ export function NodeConfigPanel({
                                     onConfigChange,
                                     onDelete,
                                     samplePayload,
+                                    actionSampleResponses,
+                                    onCaptureResponse,
                                 }: {
     nodeId: string;
     nodeType: string;
@@ -45,11 +50,24 @@ export function NodeConfigPanel({
     onConfigChange: (patch: Record<string, unknown>) => void;
     onDelete: () => void;
     samplePayload?: Record<string, unknown>;
+    actionSampleResponses: Record<string, unknown>;
+    onCaptureResponse: (nodeId: string, body: unknown) => void;
 }) {
     const def = getNodeType(nodeType);
     const accent = CATEGORY_ACCENT[def.category];
     const [sending, setSending] = useState(false);
     const [testResult, setTestResult] = useState<TestResponse | null>(null);
+
+    // Merged into every field picker/key-value mapper on this panel, not just
+    // httpCall's own fields - a check node's fieldPath picker needs to browse
+    // into an EARLIER httpCall's captured response too, not just the sample
+    // payload. Wrapped as {body: ...} to match the real runtime shape
+    // ($.actionResults.<nodeId> = the executor's full return value, whose
+    // most commonly-referenced field is .body).
+    const pickerSource = {
+        payload: samplePayload ?? {},
+        actionResults: Object.fromEntries(Object.entries(actionSampleResponses).map(([id, body]) => [id, { body }])),
+    };
 
     async function handleSendTest() {
         setSending(true);
@@ -57,6 +75,17 @@ export function NodeConfigPanel({
         try {
             const result = await flowBuilderApi.testHttpAction(config, samplePayload ?? {});
             setTestResult(result);
+            if (result.response) {
+                // Same parse-if-possible convention the real executor uses, so what
+                // the picker shows matches what will actually be there at runtime.
+                let parsedBody: unknown = result.response.body;
+                try {
+                    parsedBody = JSON.parse(result.response.body);
+                } catch {
+                    // Not JSON - captured as raw text, still usable, just not nestable.
+                }
+                onCaptureResponse(nodeId, parsedBody);
+            }
         } catch (err) {
             setTestResult({ request: { url: '', method: '', headers: {} }, error: (err as Error).message });
         } finally {
@@ -83,16 +112,14 @@ export function NodeConfigPanel({
 
             {def.canHaveOutput && def.category === 'action' && (
                 <div className="mb-4 rounded bg-blue-50 px-3 py-2 text-xs text-blue-800">
-                    A later node can reference this response by hand as{' '}
-                    <button
-                        onClick={() => navigator.clipboard.writeText(`actionResults.${nodeId}.body`)}
-                        className="rounded bg-white px-1 py-0.5 font-mono text-[11px] hover:bg-blue-100"
-                        title="Copy to clipboard"
-                    >
-                        actionResults.{nodeId}.body
-                    </button>{' '}
-                    (plus a nested field, e.g. <code className="font-mono">.someField</code>) - no picker support for
-                    browsing an actual response shape yet, since it's only known after you send a test request.
+                    {actionSampleResponses[nodeId] !== undefined ? (
+                        <>A response has been captured - other nodes' field pickers can now browse into it directly.</>
+                    ) : (
+                        <>
+                            Click "Send test request" below at least once - until then, this response's shape is unknown and
+                            other nodes can't browse into it (only type a path by hand).
+                        </>
+                    )}
                 </div>
             )}
 
@@ -107,7 +134,7 @@ export function NodeConfigPanel({
                         </label>
                         {field.kind === 'fieldPicker' ? (
                             <FieldPicker
-                                samplePayload={samplePayload ? { payload: samplePayload } : undefined}
+                                samplePayload={pickerSource}
                                 value={String(config[field.key] ?? '')}
                                 onChange={(v) => onConfigChange({ [field.key]: v })}
                                 placeholder={field.placeholder}
@@ -116,7 +143,7 @@ export function NodeConfigPanel({
                             <KeyValueMapper
                                 rows={(config[field.key] as KeyValueRow[]) ?? []}
                                 onChange={(rows) => onConfigChange({ [field.key]: rows })}
-                                samplePayload={samplePayload}
+                                pickerSource={pickerSource}
                             />
                         ) : field.kind === 'textarea' ? (
                             <textarea
@@ -184,6 +211,7 @@ export function NodeConfigPanel({
                         {testResult.response.status} {testResult.response.statusText}
                       </span>
                                             <span className="text-xs text-gray-400">{testResult.response.timeMs}ms</span>
+                                            <span className="text-xs text-emerald-700">✓ captured for other nodes to reference</span>
                                         </div>
                                         <details className="text-xs">
                                             <summary className="cursor-pointer text-gray-500 hover:text-gray-800">

@@ -34,6 +34,13 @@ export interface FlowGraph {
   // there's nothing to pick a field FROM, so config fields fall back to plain
   // text entry. Optional deliberately - a flow can exist before anyone's set one.
   samplePayload?: Record<string, unknown>;
+  // The chicken-and-egg fix: an HTTP action's response shape is genuinely
+  // unknowable until you've actually called it once. Keyed by nodeId - each
+  // successful "Send test request" persists its response body here, so
+  // EVERY node's field picker (not just the one that made the call) can
+  // browse into it afterward, the same way it browses samplePayload. Survives
+  // reloads since it's part of the saved draft, not just in-memory session state.
+  actionSampleResponses?: Record<string, unknown>;
 }
 
 /** A registered node type - drives both the canvas's palette/config-form

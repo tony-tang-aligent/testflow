@@ -36,6 +36,10 @@ function CanvasInner() {
 
   const [documentType, setDocumentType] = useState('Order');
   const [samplePayload, setSamplePayload] = useState<Record<string, unknown> | undefined>(undefined);
+  // Keyed by nodeId - each successful "Send test request" on an httpCall node
+  // persists its response body here, so every OTHER node's field picker can
+  // browse into it too. See types.ts's FlowGraph.actionSampleResponses.
+  const [actionSampleResponses, setActionSampleResponses] = useState<Record<string, unknown>>({});
   const [editingPayload, setEditingPayload] = useState(false);
   const [payloadDraft, setPayloadDraft] = useState('');
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNodeCardData>([]);
@@ -83,6 +87,7 @@ function CanvasInner() {
         .then((graph) => {
           setDocumentType(graph.documentType);
           setSamplePayload(graph.samplePayload);
+          setActionSampleResponses(graph.actionSampleResponses ?? {});
           setNodes(
               graph.nodes.map((n) =>
                   decorate({
@@ -137,6 +142,16 @@ function CanvasInner() {
     setEdges((eds) => eds.filter((e) => e.id !== edgeId));
   }
 
+  // Persists a successful "Send test request" response immediately, not just
+  // in local state until the next manual save - the whole point is that
+  // OTHER nodes' field pickers can browse it right away, and that it
+  // survives a page reload rather than only lasting the current session.
+  async function handleCaptureActionResponse(nodeId: string, body: unknown) {
+    const updated = { ...actionSampleResponses, [nodeId]: body };
+    setActionSampleResponses(updated);
+    await flowBuilderApi.saveDraft(params.flowId, { ...toGraph(), actionSampleResponses: updated });
+  }
+
   function onConnect(connection: Connection) {
     const style =
         connection.sourceHandle === 'false'
@@ -181,6 +196,7 @@ function CanvasInner() {
       flowId: params.flowId,
       documentType,
       samplePayload,
+      actionSampleResponses,
       nodes: nodes.map((n) => ({ id: n.id, type: n.data.nodeType, position: n.position, config: n.data.config })),
       edges: edges.map((e) => ({
         id: e.id,
@@ -407,6 +423,8 @@ function CanvasInner() {
                   onConfigChange={(patch) => updateNodeConfig(selectedNode.id, patch)}
                   onDelete={() => deleteNode(selectedNode.id)}
                   samplePayload={samplePayload}
+                  actionSampleResponses={actionSampleResponses}
+                  onCaptureResponse={handleCaptureActionResponse}
               />
             </SidePanel>
         )}

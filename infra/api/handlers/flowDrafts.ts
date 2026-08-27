@@ -48,6 +48,7 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       // but nothing here ever read it back out of the request body, so it
       // was silently dropped on every single write, not just this one.
       samplePayload: body.samplePayload,
+      actionSampleResponses: body.actionSampleResponses,
     };
     await client.send(new PutCommand({ TableName: TABLE, Item: draft }));
     return json(201, draft);
@@ -67,6 +68,7 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       nodes: body.nodes ?? [],
       edges: body.edges ?? [],
       samplePayload: body.samplePayload,
+      actionSampleResponses: body.actionSampleResponses,
     };
     await client.send(new PutCommand({ TableName: TABLE, Item: draft }));
     return json(200, draft);

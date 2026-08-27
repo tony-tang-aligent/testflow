@@ -19,13 +19,19 @@ function newRowId() {
 export function KeyValueMapper({
                                    rows,
                                    onChange,
-                                   samplePayload,
+                                   pickerSource,
                                    keyPlaceholder = 'key (dot-notation for nesting)',
                                    valuePlaceholder = 'value or {{payload.x}}',
                                }: {
     rows: KeyValueRow[];
     onChange: (rows: KeyValueRow[]) => void;
-    samplePayload?: Record<string, unknown>;
+    // Pre-wrapped { payload, actionResults } shape, passed straight through to
+    // FieldPicker with no re-wrapping here - this used to wrap a raw
+    // samplePayload itself, which silently dropped actionResults for every
+    // header/body row (e.g. a second httpCall wanting to reference the first
+    // one's captured response couldn't) - same convention as NodeConfigPanel's
+    // fieldPicker fields now, not a second, inconsistent one.
+    pickerSource: Record<string, unknown>;
     keyPlaceholder?: string;
     valuePlaceholder?: string;
 }) {
@@ -51,7 +57,7 @@ export function KeyValueMapper({
                     />
                     <div className="flex-1">
                         <FieldPicker
-                            samplePayload={samplePayload ? { payload: samplePayload } : undefined}
+                            samplePayload={pickerSource}
                             value={row.value}
                             onChange={(v) => updateRow(row.id, { value: v })}
                             placeholder={valuePlaceholder}
