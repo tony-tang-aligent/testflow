@@ -43,7 +43,18 @@ function interpolate(template: string, item: Record<string, unknown>): string {
 
 function runCheck(config: Record<string, unknown>, item: Record<string, unknown>) {
   const value = getPath(item, config.fieldPath as string);
-  const compareValue = config.compareValue;
+  // Field-vs-field comparison (Kazilo's condition-node style) - if
+  // compareValue looks like one of this system's real path conventions
+  // (always starts with payload. or actionResults., never coincidentally,
+  // since that's enforced everywhere else), resolve it the same way
+  // fieldPath is resolved. Otherwise it's a genuine literal, used as-is -
+  // exactly the prior behavior, so this is additive, not a breaking change
+  // for every check already built before this existed.
+  const rawCompareValue = config.compareValue;
+  const looksLikeFieldPath =
+      typeof rawCompareValue === 'string' &&
+      (rawCompareValue.startsWith('payload.') || rawCompareValue.startsWith('actionResults.'));
+  const compareValue = looksLikeFieldPath ? getPath(item, rawCompareValue as string) : rawCompareValue;
   let passed: boolean;
 
   switch (config.rule) {

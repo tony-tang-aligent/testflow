@@ -33,7 +33,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
         kind: 'select',
         options: ['mustExist', 'nonEmpty', 'greaterThan', 'lessThan', 'matchesRegex'],
       },
-      { key: 'compareValue', label: 'Compare value', kind: 'text', placeholder: 'e.g. 0 or a regex' },
+      { key: 'compareValue', label: 'Compare value', kind: 'fieldPicker', placeholder: 'e.g. 0, a regex, or another field' },
     ],
   },
 
