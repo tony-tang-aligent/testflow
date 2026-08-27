@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ReactFlow, {
   ReactFlowProvider,
@@ -56,6 +56,7 @@ function findContainerAt(
 
 function CanvasInner() {
   const params = useParams<{ flowId: string }>();
+  const router = useRouter();
   const { screenToFlowPosition } = useReactFlow();
 
   const [documentType, setDocumentType] = useState('Order');
@@ -69,13 +70,6 @@ function CanvasInner() {
   const [violations, setViolations] = useState<GraphViolation[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{
-    status: string;
-    validationStatus?: 'passed' | 'failed';
-    output?: unknown;
-    error?: string;
-    cause?: string;
-  } | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -332,21 +326,17 @@ function CanvasInner() {
 
   async function handleTestFlow() {
     setTesting(true);
-    setTestResult(null);
     try {
-      const { executionArn } = await flowBuilderApi.testFlow(documentType, samplePayload ?? {});
-      const poll = async (): Promise<void> => {
-        const result = await flowBuilderApi.getExecutionStatus(executionArn);
-        if (result.status === 'RUNNING') {
-          setTimeout(poll, 1500);
-        } else {
-          setTestResult(result);
-          setTesting(false);
-        }
-      };
-      poll();
+      await flowBuilderApi.testFlow(documentType, samplePayload ?? {});
+      // Not polling to completion and showing a result inline anymore - that
+      // was the ephemeral banner this replaced. The execution now writes a
+      // real, persistent summary row (see flowExecutor's errorAggregator
+      // case) - navigating to the history page is what actually shows the
+      // result, and it's still there if you come back later, unlike before.
+      router.push(`/flow-builder/${params.flowId}/executions`);
     } catch (err) {
-      setTestResult({ status: 'FAILED', error: (err as Error).message });
+      setStatusMessage({ type: 'error', text: (err as Error).message });
+    } finally {
       setTesting(false);
     }
   }
@@ -417,44 +407,18 @@ function CanvasInner() {
           >
             {testing ? 'Testing…' : 'Test flow'}
           </Button>
+          <Link
+            href={`/flow-builder/${params.flowId}/executions`}
+            className="rounded-md border border-outline-variant px-3 py-1.5 font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-variant hover:text-on-surface"
+          >
+            History
+          </Link>
           <Button onClick={handlePublish} disabled={publishing} size="sm">
             {publishing ? 'Publishing…' : 'Publish'}
           </Button>
         </div>
       </div>
 
-      {testResult && (
-        <div
-          className={`shrink-0 border-b px-5 py-2.5 text-xs ${
-            testResult.validationStatus === 'failed'
-              ? 'border-error/30 bg-error-container/20 text-error'
-              : testResult.validationStatus === 'passed'
-                ? 'border-secondary/30 bg-secondary-container/20 text-secondary'
-                : testResult.status === 'SUCCEEDED'
-                  ? 'border-secondary/30 bg-secondary-container/20 text-secondary'
-                  : 'border-error/30 bg-error-container/20 text-error'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="font-medium">
-              {testResult.validationStatus
-                ? `Validation: ${testResult.validationStatus === 'failed' ? 'FAILED' : 'PASSED'}`
-                : `Execution: ${testResult.status}`}
-              {testResult.validationStatus && (
-                <span className="ml-2 font-normal text-on-surface-variant">(execution {testResult.status})</span>
-              )}
-            </span>
-            <button onClick={() => setTestResult(null)} className="text-on-surface-variant hover:text-on-surface">
-              ✕
-            </button>
-          </div>
-          {Boolean(testResult.error || testResult.output) && (
-            <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px]">
-              {testResult.error ? `${testResult.error}: ${testResult.cause}` : JSON.stringify(testResult.output, null, 2)}
-            </pre>
-          )}
-        </div>
-      )}
 
       <div className="flex min-h-0 flex-1">
         <NodePalette />

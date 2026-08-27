@@ -14,6 +14,7 @@ import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 
 export class FlowBuilderStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -35,21 +36,50 @@ export class FlowBuilderStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
+    // Reversing an earlier, deliberate decision (see testPublishedFlow's own
+    // comment) that Step Functions' native execution history was enough on
+    // its own - it wasn't. Nothing outside a single component's local state
+    // ever held onto an executionArn, so there was no way to find a past
+    // test again once you navigated away. Same proven pattern the original
+    // validator already uses: a cheap, listable summary in DynamoDB, the
+    // full payload/violations detail lazily fetched from S3 only when
+    // someone actually opens a specific execution.
+    const executionSummaryTable = new dynamodb.Table(this, 'FlowExecutionSummary', {
+      partitionKey: { name: 'documentType', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'evaluatedAt', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true,
+    });
+
+    const executionDetailBucket = new s3.Bucket(this, 'FlowExecutionDetail', {
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      versioned: true,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      lifecycleRules: [{ noncurrentVersionExpiration: cdk.Duration.days(90) }],
+    });
+
     const flowExecutorFn = new lambda.NodejsFunction(this, 'FlowExecutorFn', {
       entry: path.join(__dirname, '../lambda/flowExecutor/index.ts'),
       runtime: Runtime.NODEJS_20_X,
       timeout: cdk.Duration.seconds(30),
+      environment: {
+        EXECUTION_SUMMARY_TABLE_NAME: executionSummaryTable.tableName,
+        EXECUTION_DETAIL_BUCKET_NAME: executionDetailBucket.bucketName,
+      },
     });
     // The HTTP action node's auth support (API Key/Bearer/Basic) reads a
     // referenced secret at runtime - see httpActionResolver.ts's naming
     // convention (flow-builder-secrets/{name}, a flat namespace since this
     // system has no per-tenant concept, unlike the original validator).
     flowExecutorFn.addToRolePolicy(
-        new iam.PolicyStatement({
-          actions: ['secretsmanager:GetSecretValue'],
-          resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:flow-builder-secrets/*`],
-        }),
+      new iam.PolicyStatement({
+        actions: ['secretsmanager:GetSecretValue'],
+        resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:flow-builder-secrets/*`],
+      }),
     );
+    executionSummaryTable.grantWriteData(flowExecutorFn);
+    executionDetailBucket.grantWrite(flowExecutorFn);
 
     const flowStateMachineRole = new iam.Role(this, 'FlowStateMachineRole', {
       assumedBy: new iam.ServicePrincipal('states.amazonaws.com'),
@@ -68,13 +98,13 @@ export class FlowBuilderStack extends cdk.Stack {
     });
     publishedFlowTable.grantReadWriteData(publishFlowFn);
     publishFlowFn.addToRolePolicy(
-        new iam.PolicyStatement({
-          actions: ['states:CreateStateMachine', 'states:UpdateStateMachine', 'states:DescribeStateMachine'],
-          resources: ['*'],
-        }),
+      new iam.PolicyStatement({
+        actions: ['states:CreateStateMachine', 'states:UpdateStateMachine', 'states:DescribeStateMachine'],
+        resources: ['*'],
+      }),
     );
     publishFlowFn.addToRolePolicy(
-        new iam.PolicyStatement({ actions: ['iam:PassRole'], resources: [flowStateMachineRole.roleArn] }),
+      new iam.PolicyStatement({ actions: ['iam:PassRole'], resources: [flowStateMachineRole.roleArn] }),
     );
 
     const draftFn = new lambda.NodejsFunction(this, 'FlowDraftFn', {
@@ -144,10 +174,10 @@ export class FlowBuilderStack extends cdk.Stack {
     });
     publishedFlowTable.grantReadData(testFlowFn);
     testFlowFn.addToRolePolicy(
-        new iam.PolicyStatement({
-          actions: ['states:StartExecution', 'states:DescribeExecution'],
-          resources: ['*'], // execution ARNs aren't known until StartExecution returns one - can't scope tighter than the account/region here
-        }),
+      new iam.PolicyStatement({
+        actions: ['states:StartExecution', 'states:DescribeExecution'],
+        resources: ['*'], // execution ARNs aren't known until StartExecution returns one - can't scope tighter than the account/region here
+      }),
     );
     httpApi.addRoutes({
       path: '/test-flow',
@@ -182,15 +212,41 @@ export class FlowBuilderStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(20),
     });
     testHttpActionFn.addToRolePolicy(
-        new iam.PolicyStatement({
-          actions: ['secretsmanager:GetSecretValue'],
-          resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:flow-builder-secrets/*`],
-        }),
+      new iam.PolicyStatement({
+        actions: ['secretsmanager:GetSecretValue'],
+        resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:flow-builder-secrets/*`],
+      }),
     );
     httpApi.addRoutes({
       path: '/test-http-action',
       methods: [apigwv2.HttpMethod.POST],
       integration: new integrations.HttpLambdaIntegration('TestHttpActionIntegration', testHttpActionFn),
+    });
+
+    // Real, persistent execution history - see FlowExecutionSummary/
+    // FlowExecutionDetail above for the reasoning (replaces relying purely
+    // on Step Functions' own native execution history, which nothing in
+    // this app had a durable way to look back up).
+    const flowExecutionHistoryFn = new lambda.NodejsFunction(this, 'FlowExecutionHistoryFn', {
+      entry: path.join(__dirname, '../lambda/flowExecutionHistory/index.ts'),
+      runtime: Runtime.NODEJS_20_X,
+      timeout: cdk.Duration.seconds(15),
+      environment: {
+        EXECUTION_SUMMARY_TABLE_NAME: executionSummaryTable.tableName,
+        EXECUTION_DETAIL_BUCKET_NAME: executionDetailBucket.bucketName,
+      },
+    });
+    executionSummaryTable.grantReadData(flowExecutionHistoryFn);
+    executionDetailBucket.grantRead(flowExecutionHistoryFn);
+    httpApi.addRoutes({
+      path: '/document-types/{documentType}/executions',
+      methods: [apigwv2.HttpMethod.GET],
+      integration: new integrations.HttpLambdaIntegration('FlowExecutionListIntegration', flowExecutionHistoryFn),
+    });
+    httpApi.addRoutes({
+      path: '/document-types/{documentType}/executions/{executionId}',
+      methods: [apigwv2.HttpMethod.GET],
+      integration: new integrations.HttpLambdaIntegration('FlowExecutionDetailIntegration', flowExecutionHistoryFn),
     });
 
     new cdk.CfnOutput(this, 'FlowBuilderApiUrl', { value: httpApi.apiEndpoint });

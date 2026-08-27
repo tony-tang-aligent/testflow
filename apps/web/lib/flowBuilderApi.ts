@@ -70,4 +70,20 @@ export const flowBuilderApi = {
       method: 'POST',
       body: JSON.stringify({ config, samplePayload }),
     }),
+  // Real, persistent history - replaces relying on a single ephemeral
+  // executionArn held in local component state, which was gone the moment
+  // you navigated away.
+  listExecutionHistory: (documentType: string) =>
+    request<
+      Array<{ documentType: string; evaluatedAt: string; executionId: string; status: string; violationCount: number }>
+    >(`/document-types/${encodeURIComponent(documentType)}/executions`),
+  getExecutionHistoryDetail: (documentType: string, executionId: string) =>
+    request<{
+      documentType: string;
+      evaluatedAt: string;
+      executionId: string;
+      status: string;
+      violationCount: number;
+      detail: { payload: unknown; checkResults: unknown; violations: unknown[] };
+    }>(`/document-types/${encodeURIComponent(documentType)}/executions/${encodeURIComponent(executionId)}`),
 };

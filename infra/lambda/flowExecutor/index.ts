@@ -15,23 +15,32 @@
 // repeatForEach, collected per-item by the Map state itself).
 
 import { resolveHttpRequest, HttpActionConfig } from '../flowBuilderShared/httpActionResolver';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+
+const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const s3 = new S3Client({});
+const SUMMARY_TABLE = process.env.EXECUTION_SUMMARY_TABLE_NAME;
+const DETAIL_BUCKET = process.env.EXECUTION_DETAIL_BUCKET_NAME;
 
 interface ExecutorEvent {
   nodeId: string;
   nodeType: string;
   config?: Record<string, unknown>;
   item?: Record<string, unknown>;
+  executionId?: string;
 }
 
 function getPath(obj: unknown, path: string): unknown {
   if (!path) return obj;
   return path
-      .split(/[.[\]]/)
-      .filter(Boolean)
-      .reduce<unknown>((acc, key) => {
-        if (acc == null) return undefined;
-        return (acc as Record<string, unknown>)[key];
-      }, obj);
+    .split(/[.[\]]/)
+    .filter(Boolean)
+    .reduce<unknown>((acc, key) => {
+      if (acc == null) return undefined;
+      return (acc as Record<string, unknown>)[key];
+    }, obj);
 }
 
 function interpolate(template: string, item: Record<string, unknown>): string {
@@ -52,8 +61,8 @@ function runCheck(config: Record<string, unknown>, item: Record<string, unknown>
   // for every check already built before this existed.
   const rawCompareValue = config.compareValue;
   const looksLikeFieldPath =
-      typeof rawCompareValue === 'string' &&
-      (rawCompareValue.startsWith('payload.') || rawCompareValue.startsWith('actionResults.'));
+    typeof rawCompareValue === 'string' &&
+    (rawCompareValue.startsWith('payload.') || rawCompareValue.startsWith('actionResults.'));
   const compareValue = looksLikeFieldPath ? getPath(item, rawCompareValue as string) : rawCompareValue;
   let passed: boolean;
 
@@ -80,8 +89,8 @@ function runCheck(config: Record<string, unknown>, item: Record<string, unknown>
   return {
     passed,
     violation: passed
-        ? undefined
-        : { fieldPath: config.fieldPath, rule: config.rule, expected: compareValue, actual: value },
+      ? undefined
+      : { fieldPath: config.fieldPath, rule: config.rule, expected: compareValue, actual: value },
   };
 }
 
@@ -164,15 +173,55 @@ export const handler = async (event: ExecutorEvent) => {
 
     case 'errorAggregator': {
       const state = item as {
+        documentType?: string;
+        payload?: unknown;
         iterationResults?: Array<{ violation?: unknown }>;
         checkResults?: Record<string, { violation?: unknown }>;
       };
       const fromIteration = (state.iterationResults ?? []).map((r) => r.violation).filter(Boolean);
       const fromTopLevel = Object.values(state.checkResults ?? {})
-          .map((r) => r.violation)
-          .filter(Boolean);
+        .map((r) => r.violation)
+        .filter(Boolean);
       const violations = [...fromTopLevel, ...fromIteration];
-      return { violations, status: violations.length > 0 ? 'failed' : 'passed' };
+      const result = { violations, status: violations.length > 0 ? 'failed' : ('passed' as const) };
+
+      // Persisted regardless of pass/fail - a summary row + the full detail
+      // blob, the exact pattern the original validator already proved out
+      // (cheap listable summary in DynamoDB, full payload/violations lazily
+      // fetched from S3 only when someone opens one specific execution).
+      // Best-effort: a write failure here shouldn't fail the actual
+      // validation result the caller is waiting on.
+      if (SUMMARY_TABLE && DETAIL_BUCKET && event.executionId) {
+        const evaluatedAt = new Date().toISOString();
+        const s3Key = `${state.documentType ?? 'unknown'}/${event.executionId}.json`;
+        try {
+          await s3.send(
+            new PutObjectCommand({
+              Bucket: DETAIL_BUCKET,
+              Key: s3Key,
+              Body: JSON.stringify({ payload: state.payload, checkResults: state.checkResults, violations }),
+              ContentType: 'application/json',
+            }),
+          );
+          await ddb.send(
+            new PutCommand({
+              TableName: SUMMARY_TABLE,
+              Item: {
+                documentType: state.documentType ?? 'unknown',
+                evaluatedAt,
+                executionId: event.executionId,
+                status: result.status,
+                violationCount: violations.length,
+                s3Key,
+              },
+            }),
+          );
+        } catch (err) {
+          console.error('Failed to persist execution history (validation result itself is unaffected):', err);
+        }
+      }
+
+      return result;
     }
 
     case 'emailAlert':

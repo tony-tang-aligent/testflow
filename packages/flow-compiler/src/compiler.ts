@@ -180,7 +180,12 @@ function compileChain(
         // specifically needs the CURRENT state at the point it runs, not the
         // pristine original input - it's the one node whose entire job is
         // reading what everything before it just wrote.
-        Parameters: { nodeId: node.id, nodeType: node.type, 'item.$': '$' },
+        //
+        // executionId comes from the context object ($$), a genuinely
+        // different namespace than state ($) - needed so errorAggregator can
+        // tag the persisted summary/detail record with something stable to
+        // look it back up by later (see flowExecutionHistory's Lambda).
+        Parameters: { nodeId: node.id, nodeType: node.type, 'item.$': '$', 'executionId.$': '$$.Execution.Name' },
         ResultPath: '$.aggregatedResult',
         ...(nextName ? { Next: nextName } : { End: true }),
       };
