@@ -56,16 +56,16 @@ function nestedChainNodeIds(graph: FlowGraph, repeatNodeId: string): Set<string>
  * drawn. */
 function findEntryChild(graph: FlowGraph, childIds: Set<string>): string | undefined {
   const targetedBySibling = new Set(
-      graph.edges.filter((e) => childIds.has(e.source) && childIds.has(e.target)).map((e) => e.target),
+    graph.edges.filter((e) => childIds.has(e.source) && childIds.has(e.target)).map((e) => e.target),
   );
   return [...childIds].find((id) => !targetedBySibling.has(id));
 }
 
 function compileChain(
-    graph: FlowGraph,
-    startNodeId: string,
-    states: Record<string, AslState>,
-    boundaryNodeIds?: Set<string>,
+  graph: FlowGraph,
+  startNodeId: string,
+  states: Record<string, AslState>,
+  boundaryNodeIds?: Set<string>,
 ): string {
   const node = nodeById(graph, startNodeId);
   if (states[node.id]) return node.id;
@@ -137,12 +137,12 @@ function compileChain(
       const entryChildId = findEntryChild(graph, nestedIds);
       const itemProcessorStates: Record<string, AslState> = {};
       const itemStart = entryChildId
-          ? compileChain(graph, entryChildId, itemProcessorStates, nestedIds)
-          : undefined;
+        ? compileChain(graph, entryChildId, itemProcessorStates, nestedIds)
+        : undefined;
 
       const resumeEdge = [...nestedIds]
-          .flatMap((id) => outgoing(graph, id))
-          .find((e) => !nestedIds.has(e.target));
+        .flatMap((id) => outgoing(graph, id))
+        .find((e) => !nestedIds.has(e.target));
       const resumeName = resumeEdge ? compileChain(graph, resumeEdge.target, states, boundaryNodeIds) : undefined;
 
       states[node.id] = {
@@ -189,9 +189,9 @@ function compileChain(
 
     case 'workflowResult': {
       states[node.id] =
-          node.config.returnResult === 'failed'
-              ? { Type: 'Fail', Error: 'ValidationFailed', Cause: 'One or more checks failed.' }
-              : { Type: 'Succeed' };
+        node.config.returnResult === 'failed'
+          ? { Type: 'Fail', Error: 'ValidationFailed', Cause: 'One or more checks failed.' }
+          : { Type: 'Succeed' };
       return node.id;
     }
 

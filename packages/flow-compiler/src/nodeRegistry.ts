@@ -10,6 +10,7 @@ import { NodeTypeDefinition } from './types';
 export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   documentInput: {
     type: 'documentInput',
+    icon: 'bolt',
     category: 'control',
     label: 'Document Input',
     description: 'Receives the extracted document JSON. Every flow starts here.',
@@ -20,6 +21,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
 
   fieldValidator: {
     type: 'fieldValidator',
+    icon: 'rule',
     category: 'check',
     label: 'Field Validator',
     description: 'Checks one field against a rule (exists, non-empty, comparison, regex).',
@@ -39,6 +41,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
 
   computedCheck: {
     type: 'computedCheck',
+    icon: 'calculate',
     category: 'check',
     label: 'Computed Check',
     description: 'Compares a calculated value (e.g. quantity × price) against a field.',
@@ -52,6 +55,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
 
   repeatForEach: {
     type: 'repeatForEach',
+    icon: 'repeat',
     category: 'control',
     label: 'Repeat For Each',
     description: 'Runs a nested chain once per array item (e.g. every line item). See spec §6.',
@@ -62,6 +66,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
 
   emailAlert: {
     type: 'emailAlert',
+    icon: 'mail',
     category: 'action',
     label: 'Email Alert',
     description: 'Sends a templated email. Terminal - nothing runs after this.',
@@ -76,6 +81,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
 
   slackAlert: {
     type: 'slackAlert',
+    icon: 'chat',
     category: 'action',
     label: 'Slack Message',
     description: 'Posts to a Slack channel. Terminal - nothing runs after this.',
@@ -89,6 +95,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
 
   httpCall: {
     type: 'httpCall',
+    icon: 'http',
     category: 'action',
     label: 'HTTP Request',
     description: 'Calls an external API with a mapped request - method, auth, headers, and body all configurable, and testable before you publish.',
@@ -128,6 +135,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
 
   lambdaInvoke: {
     type: 'lambdaInvoke',
+    icon: 'functions',
     category: 'action',
     label: 'Call Lambda',
     description: 'Invokes another Lambda function. Terminal - nothing runs after this.',
@@ -140,6 +148,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
 
   errorAggregator: {
     type: 'errorAggregator',
+    icon: 'call_merge',
     category: 'aggregation',
     label: 'Error Aggregator',
     description: 'Collects violations from all checks into one result. The one shared merge point (spec §5).',
@@ -150,6 +159,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
 
   workflowResult: {
     type: 'workflowResult',
+    icon: 'verified',
     category: 'output',
     label: 'Workflow Result',
     description: 'Ends the flow and returns the result to Portalink.',

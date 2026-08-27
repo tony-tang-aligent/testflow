@@ -62,6 +62,10 @@ export interface NodeTypeDefinition {
   category: NodeCategory;
   label: string;
   description: string;
+  // Material Symbols glyph name (e.g. 'bolt', 'functions') - matches the
+  // reference design's per-node-type icon in the header bar. Not required
+  // by the compiler at all - purely a canvas rendering concern.
+  icon: string;
   // Whether this node type can have an outgoing edge at all - false for every
   // action node, per spec §4 ("structurally forbidden from having any
   // outgoing edge"). Enforced by both the canvas UI and the validator.

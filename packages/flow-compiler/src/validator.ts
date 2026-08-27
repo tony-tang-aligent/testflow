@@ -113,8 +113,8 @@ const noGraphCycles: GraphValidationRule = {
   check(graph) {
     const violations: GraphViolation[] = [];
     const WHITE = 0,
-        GRAY = 1,
-        BLACK = 2;
+      GRAY = 1,
+      BLACK = 2;
     const color = new Map(graph.nodes.map((n) => [n.id, WHITE]));
 
     function visit(nodeId: string): boolean {
