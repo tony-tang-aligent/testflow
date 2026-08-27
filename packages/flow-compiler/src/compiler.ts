@@ -129,7 +129,14 @@ function compileChain(
 
       states[node.id] = {
         Type: 'Map',
-        ItemsPath: `$.payload.${node.config.arrayPath ?? 'items'}`,
+        // Full path, not auto-prefixed with "payload." anymore - this now
+        // matches fieldPath/comparedTo's own convention exactly (the field
+        // picker always generates a full path from the wrapped execution
+        // root, e.g. "payload.lineItems"), rather than requiring arrayPath to
+        // be a bare name while those two fields need the full path. Two
+        // different implicit conventions for what looked like the same
+        // picker control - this was a real inconsistency, not a style choice.
+        ItemsPath: `$.${node.config.arrayPath ?? 'payload.items'}`,
         ItemProcessor: {
           StartAt: itemStart ?? 'NoOp',
           States: itemStart ? itemProcessorStates : { NoOp: { Type: 'Pass', End: true } },

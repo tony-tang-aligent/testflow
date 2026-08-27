@@ -20,12 +20,12 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
     const documentType = event.queryStringParameters?.documentType;
     if (documentType) {
       const res = await client.send(
-        new QueryCommand({
-          TableName: TABLE,
-          IndexName: 'byDocumentType',
-          KeyConditionExpression: 'documentType = :d',
-          ExpressionAttributeValues: { ':d': documentType },
-        }),
+          new QueryCommand({
+            TableName: TABLE,
+            IndexName: 'byDocumentType',
+            KeyConditionExpression: 'documentType = :d',
+            ExpressionAttributeValues: { ':d': documentType },
+          }),
       );
       return json(200, res.Items ?? []);
     }
@@ -44,6 +44,10 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       // it here so a brand-new draft is never a genuinely empty, unusable canvas.
       nodes: body.nodes ?? [{ id: 'start', type: 'documentInput', position: { x: 250, y: 60 }, config: {} }],
       edges: body.edges ?? [],
+      // Was missing entirely - the frontend always sent this on every save,
+      // but nothing here ever read it back out of the request body, so it
+      // was silently dropped on every single write, not just this one.
+      samplePayload: body.samplePayload,
     };
     await client.send(new PutCommand({ TableName: TABLE, Item: draft }));
     return json(201, draft);
@@ -62,6 +66,7 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       documentType: body.documentType ?? 'Order',
       nodes: body.nodes ?? [],
       edges: body.edges ?? [],
+      samplePayload: body.samplePayload,
     };
     await client.send(new PutCommand({ TableName: TABLE, Item: draft }));
     return json(200, draft);

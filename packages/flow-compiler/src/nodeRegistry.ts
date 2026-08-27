@@ -57,7 +57,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     description: 'Runs a nested chain once per array item (e.g. every line item). See spec §6.',
     canHaveOutput: true,
     branches: false,
-    configFields: [{ key: 'arrayPath', label: 'Array field', kind: 'fieldPicker', placeholder: 'e.g. lineItems' }],
+    configFields: [{ key: 'arrayPath', label: 'Array field', kind: 'fieldPicker', placeholder: 'e.g. payload.lineItems' }],
   },
 
   emailAlert: {
