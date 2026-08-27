@@ -1,11 +1,22 @@
 // apps/web/app/flow-builder/page.tsx
+//
+// Complete redesign with the shadcn foundation - Card for each draft row
+// (real elevation/border tokens instead of ad-hoc gray-200/shadow-sm pairs),
+// Button for every action, Badge for the "Published" marker. All the
+// underlying fetch/create logic is completely unchanged - this is purely
+// the visual layer.
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowRight, Plus } from 'lucide-react';
 import { flowBuilderApi } from '../../lib/flowBuilderApi';
 import type { FlowGraph } from '@workspace/flow-compiler';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
+import { Card } from '../../components/ui/card';
 
 const DOCUMENT_TYPES = ['Order', 'Invoice'];
 
@@ -22,15 +33,15 @@ export default function FlowBuilderDashboard() {
     Promise.all([
       flowBuilderApi.listDrafts(documentType).catch(() => []),
       flowBuilderApi
-          .getPublishedFlow(documentType)
-          .then((r) => r.published?.flowId ?? null)
-          .catch(() => null),
+        .getPublishedFlow(documentType)
+        .then((r) => r.published?.flowId ?? null)
+        .catch(() => null),
     ])
-        .then(([draftList, publishedId]) => {
-          setDrafts(draftList);
-          setPublishedFlowId(publishedId);
-        })
-        .finally(() => setLoading(false));
+      .then(([draftList, publishedId]) => {
+        setDrafts(draftList);
+        setPublishedFlowId(publishedId);
+      })
+      .finally(() => setLoading(false));
   }, [documentType]);
 
   async function handleCreate() {
@@ -44,75 +55,73 @@ export default function FlowBuilderDashboard() {
   }
 
   return (
-      <div className="mx-auto max-w-2xl p-6">
-        <div className="mb-1 flex items-center gap-2 text-sm text-gray-500">
-          <Link href="/flow-builder" className="hover:text-gray-900">
-            Dashboard
-          </Link>
-          <span>/</span>
-          <span className="font-medium text-gray-900">Flow Builder</span>
-        </div>
-        <h1 className="mb-4 text-lg font-medium">Flows</h1>
-
-        <div className="mb-5 flex items-center gap-2">
-          {DOCUMENT_TYPES.map((dt) => (
-              <button
-                  key={dt}
-                  onClick={() => setDocumentType(dt)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      documentType === dt ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-              >
-                {dt}
-              </button>
-          ))}
-          <div className="flex-1" />
-          <button
-              onClick={handleCreate}
-              disabled={creating}
-              className="rounded bg-gray-900 px-3.5 py-1.5 text-xs font-medium text-white disabled:opacity-50"
-          >
-            {creating ? 'Creating…' : '+ New draft'}
-          </button>
-        </div>
-
-        {loading ? (
-            <p className="text-sm text-gray-500">Loading…</p>
-        ) : drafts.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
-              No draft flows for {documentType} yet - create one to get started.
-            </div>
-        ) : (
-            <div className="space-y-2">
-              {drafts.map((draft) => {
-                const isPublished = draft.flowId === publishedFlowId;
-                return (
-                    <Link
-                        key={draft.flowId}
-                        href={`/flow-builder/${draft.flowId}`}
-                        className={`flex items-center justify-between rounded-lg border bg-white px-4 py-3 shadow-sm hover:shadow ${
-                            isPublished ? 'border-emerald-300 ring-1 ring-emerald-100' : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900">{draft.flowId}</span>
-                          {isPublished && (
-                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800">
-                        Published
-                      </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          {draft.nodes.length} node{draft.nodes.length === 1 ? '' : 's'}
-                        </div>
-                      </div>
-                      <span className="text-sm text-gray-400">Open →</span>
-                    </Link>
-                );
-              })}
-            </div>
-        )}
+    <div className="mx-auto max-w-3xl px-6 py-10">
+      <div className="mb-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Link href="/flow-builder" className="hover:text-foreground">
+          Dashboard
+        </Link>
+        <span>/</span>
+        <span className="text-foreground">Flow Builder</span>
       </div>
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight">Flows</h1>
+
+      <div className="mb-6 flex items-center justify-between">
+        <div className="inline-flex rounded-lg border bg-muted p-1">
+          {DOCUMENT_TYPES.map((dt) => (
+            <button
+              key={dt}
+              onClick={() => setDocumentType(dt)}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                documentType === dt
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {dt}
+            </button>
+          ))}
+        </div>
+        <Button onClick={handleCreate} disabled={creating}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          {creating ? 'Creating…' : 'New draft'}
+        </Button>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : drafts.length === 0 ? (
+        <div className="rounded-lg border border-dashed p-12 text-center">
+          <p className="text-sm text-muted-foreground">
+            No draft flows for {documentType} yet - create one to get started.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {drafts.map((draft) => {
+            const isPublished = draft.flowId === publishedFlowId;
+            return (
+              <Link key={draft.flowId} href={`/flow-builder/${draft.flowId}`}>
+                <Card
+                  className={`flex items-center justify-between px-4 py-3 transition-shadow hover:shadow-md ${
+                    isPublished ? 'border-emerald-300 ring-1 ring-emerald-100' : ''
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{draft.flowId}</span>
+                      {isPublished && <Badge variant="success">Published</Badge>}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {draft.nodes.length} node{draft.nodes.length === 1 ? '' : 's'}
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

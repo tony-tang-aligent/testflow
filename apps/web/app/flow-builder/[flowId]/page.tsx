@@ -26,6 +26,7 @@ import { FlowNodeCard, FlowNodeCardData } from '../../../components/flow-builder
 import { LoopContainerNode, LoopContainerData } from '../../../components/flow-builder/LoopContainerNode';
 import { DeletableEdge, DeletableEdgeData } from '../../../components/edges/DeletableEdge';
 import { SidePanel } from '../../../components/SidePanel';
+import { Button } from '../../../components/ui/button';
 
 const nodeTypes = {
   flowNode: ({ data }: { data: FlowNodeCardData }) => <FlowNodeCard data={data} />,
@@ -42,8 +43,8 @@ const LOOP_DEFAULT_HEIGHT = 280;
  * (nested loops aren't supported - same scope boundary as before this
  * redesign, just enforced differently now). */
 function findContainerAt(
-    point: { x: number; y: number },
-    allNodes: Node<FlowNodeCardData | LoopContainerData>[],
+  point: { x: number; y: number },
+  allNodes: Node<FlowNodeCardData | LoopContainerData>[],
 ): Node<LoopContainerData> | undefined {
   return allNodes.find((n): n is Node<LoopContainerData> => {
     if (n.type !== 'loopContainer') return false;
@@ -83,71 +84,71 @@ function CanvasInner() {
   const selectedNode = nodes.find((n) => n.id === selectedId) as Node<FlowNodeCardData> | undefined;
 
   const decorate = useCallback(
-      (n: Node<FlowNodeCardData | LoopContainerData>): Node<FlowNodeCardData | LoopContainerData> => ({
-        ...n,
-        // Preserve whichever type this node actually is - a real bug this
-        // fixes: decorate() previously hardcoded 'flowNode' unconditionally,
-        // which would have silently overwritten a loop container's type on
-        // every selection/violation change.
-        type: n.type,
+    (n: Node<FlowNodeCardData | LoopContainerData>): Node<FlowNodeCardData | LoopContainerData> => ({
+      ...n,
+      // Preserve whichever type this node actually is - a real bug this
+      // fixes: decorate() previously hardcoded 'flowNode' unconditionally,
+      // which would have silently overwritten a loop container's type on
+      // every selection/violation change.
+      type: n.type,
+      selected: n.id === selectedId,
+      data: {
+        ...n.data,
         selected: n.id === selectedId,
-        data: {
-          ...n.data,
-          selected: n.id === selectedId,
-          hasError: violationsByNode.has(n.id),
-          errorMessage: violationsByNode.get(n.id),
-        },
-      }),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [selectedId, violations],
+        hasError: violationsByNode.has(n.id),
+        errorMessage: violationsByNode.get(n.id),
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedId, violations],
   );
 
   useEffect(() => {
     flowBuilderApi
-        .getDraft(params.flowId)
-        .then((graph) => {
-          setDocumentType(graph.documentType);
-          setSamplePayload(graph.samplePayload);
-          setActionSampleResponses(graph.actionSampleResponses ?? {});
+      .getDraft(params.flowId)
+      .then((graph) => {
+        setDocumentType(graph.documentType);
+        setSamplePayload(graph.samplePayload);
+        setActionSampleResponses(graph.actionSampleResponses ?? {});
 
-          // ReactFlow REQUIRES a parent node to appear before its children in
-          // the nodes array - repeatForEach nodes sorted first covers this for
-          // the one level of nesting this system supports.
-          const sortedNodes = [...graph.nodes].sort((a, b) =>
-              a.type === 'repeatForEach' && b.type !== 'repeatForEach' ? -1 : 0,
-          );
+        // ReactFlow REQUIRES a parent node to appear before its children in
+        // the nodes array - repeatForEach nodes sorted first covers this for
+        // the one level of nesting this system supports.
+        const sortedNodes = [...graph.nodes].sort((a, b) =>
+          a.type === 'repeatForEach' && b.type !== 'repeatForEach' ? -1 : 0,
+        );
 
-          setNodes(
-              sortedNodes.map((n) =>
-                  decorate({
-                    id: n.id,
-                    position: n.position,
-                    type: n.type === 'repeatForEach' ? 'loopContainer' : 'flowNode',
-                    parentNode: n.parentId,
-                    extent: n.parentId ? 'parent' : undefined,
-                    style: n.type === 'repeatForEach' ? { width: n.width ?? LOOP_DEFAULT_WIDTH, height: n.height ?? LOOP_DEFAULT_HEIGHT } : undefined,
-                    data: { nodeType: n.type, config: n.config, hasError: false, selected: false },
-                  }),
-              ),
-          );
-          setEdges(
-              graph.edges.map((e) => ({
-                id: e.id,
-                source: e.source,
-                target: e.target,
-                sourceHandle: e.sourceHandle === 'default' ? undefined : e.sourceHandle,
-                type: 'deletable',
-                data: { onDelete: deleteEdge },
-                style:
-                    e.sourceHandle === 'false'
-                        ? { stroke: '#EF4444' }
-                        : e.sourceHandle === 'true'
-                            ? { stroke: '#22C55E' }
-                            : undefined,
-              })),
-          );
-        })
-        .finally(() => setLoading(false));
+        setNodes(
+          sortedNodes.map((n) =>
+            decorate({
+              id: n.id,
+              position: n.position,
+              type: n.type === 'repeatForEach' ? 'loopContainer' : 'flowNode',
+              parentNode: n.parentId,
+              extent: n.parentId ? 'parent' : undefined,
+              style: n.type === 'repeatForEach' ? { width: n.width ?? LOOP_DEFAULT_WIDTH, height: n.height ?? LOOP_DEFAULT_HEIGHT } : undefined,
+              data: { nodeType: n.type, config: n.config, hasError: false, selected: false },
+            }),
+          ),
+        );
+        setEdges(
+          graph.edges.map((e) => ({
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            sourceHandle: e.sourceHandle === 'default' ? undefined : e.sourceHandle,
+            type: 'deletable',
+            data: { onDelete: deleteEdge },
+            style:
+              e.sourceHandle === 'false'
+                ? { stroke: '#EF4444' }
+                : e.sourceHandle === 'true'
+                  ? { stroke: '#22C55E' }
+                  : undefined,
+          })),
+        );
+      })
+      .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.flowId]);
 
@@ -158,9 +159,9 @@ function CanvasInner() {
 
   function updateNodeConfig(nodeId: string, patch: Record<string, unknown>) {
     setNodes((nds) =>
-        nds.map((n) =>
-            n.id === nodeId ? { ...n, data: { ...n.data, config: { ...n.data.config, ...patch } } } : n,
-        ),
+      nds.map((n) =>
+        n.id === nodeId ? { ...n, data: { ...n.data, config: { ...n.data.config, ...patch } } } : n,
+      ),
     );
   }
 
@@ -185,11 +186,11 @@ function CanvasInner() {
 
   function onConnect(connection: Connection) {
     const style =
-        connection.sourceHandle === 'false'
-            ? { stroke: '#EF4444' }
-            : connection.sourceHandle === 'true'
-                ? { stroke: '#22C55E' }
-                : undefined;
+      connection.sourceHandle === 'false'
+        ? { stroke: '#EF4444' }
+        : connection.sourceHandle === 'true'
+          ? { stroke: '#22C55E' }
+          : undefined;
     setEdges((eds) => addEdge({ ...connection, type: 'deletable', data: { onDelete: deleteEdge }, style }, eds));
   }
 
@@ -219,8 +220,8 @@ function CanvasInner() {
 
     const container = findContainerAt(absolutePosition, nodes);
     const position = container
-        ? { x: absolutePosition.x - container.position.x, y: absolutePosition.y - container.position.y }
-        : absolutePosition;
+      ? { x: absolutePosition.x - container.position.x, y: absolutePosition.y - container.position.y }
+      : absolutePosition;
 
     setNodes((nds) => [
       ...nds,
@@ -243,22 +244,22 @@ function CanvasInner() {
 
     const currentParent = nodes.find((n) => n.id === draggedNode.parentNode);
     const absolutePosition = currentParent
-        ? { x: draggedNode.position.x + currentParent.position.x, y: draggedNode.position.y + currentParent.position.y }
-        : draggedNode.position;
+      ? { x: draggedNode.position.x + currentParent.position.x, y: draggedNode.position.y + currentParent.position.y }
+      : draggedNode.position;
 
     const newContainer = findContainerAt(absolutePosition, nodes.filter((n) => n.id !== draggedNode.id));
     if ((newContainer?.id ?? undefined) === draggedNode.parentNode) return; // no change
 
     const newPosition = newContainer
-        ? { x: absolutePosition.x - newContainer.position.x, y: absolutePosition.y - newContainer.position.y }
-        : absolutePosition;
+      ? { x: absolutePosition.x - newContainer.position.x, y: absolutePosition.y - newContainer.position.y }
+      : absolutePosition;
 
     setNodes((nds) =>
-        nds.map((n) =>
-            n.id === draggedNode.id
-                ? { ...n, position: newPosition, parentNode: newContainer?.id, extent: newContainer ? 'parent' : undefined }
-                : n,
-        ),
+      nds.map((n) =>
+        n.id === draggedNode.id
+          ? { ...n, position: newPosition, parentNode: newContainer?.id, extent: newContainer ? 'parent' : undefined }
+          : n,
+      ),
     );
   };
 
@@ -318,7 +319,7 @@ function CanvasInner() {
         setStatusMessage({
           type: 'error',
           text: `${violationErr.violations.length} issue${
-              violationErr.violations.length === 1 ? '' : 's'
+            violationErr.violations.length === 1 ? '' : 's'
           } - see highlighted nodes below.`,
         });
       } else {
@@ -367,201 +368,186 @@ function CanvasInner() {
   if (loading) return <p className="p-6 text-sm text-gray-500">Loading…</p>;
 
   return (
-      <div className="flex h-screen flex-col bg-[#F7F8FB]">
-        <style>{`
+    <div className="flex h-screen flex-col bg-[#F7F8FB]">
+      <style>{`
         @keyframes flowNodePulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
           50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
         }
       `}</style>
 
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-5 py-2.5">
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Link href="/flow-builder" className="hover:text-gray-900">
-              Dashboard
-            </Link>
-            <span>/</span>
-            <span className="font-medium text-gray-900">Flow Builder</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {statusMessage && (
-                <span
-                    className={`rounded px-2.5 py-1 text-xs font-medium ${
-                        statusMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-                    }`}
-                >
+      <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-5 py-2.5">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Link href="/flow-builder" className="hover:text-gray-900">
+            Dashboard
+          </Link>
+          <span>/</span>
+          <span className="font-medium text-gray-900">Flow Builder</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {statusMessage && (
+            <span
+              className={`rounded px-2.5 py-1 text-xs font-medium ${
+                statusMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+              }`}
+            >
               {statusMessage.text}
             </span>
-            )}
-            <select
-                value={documentType}
-                onChange={(e) => setDocumentType(e.target.value)}
-                className="rounded border border-gray-200 px-2 py-1 text-xs"
-            >
-              <option>Order</option>
-              <option>Invoice</option>
-            </select>
-            <button
-                onClick={openPayloadEditor}
-                className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Sample payload
-            </button>
-            <button
-                onClick={handleSave}
-                className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Save draft
-            </button>
-            <button
-                onClick={handleTestFlow}
-                disabled={testing}
-                title="Runs the currently PUBLISHED flow, not unpublished draft changes"
-                className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              {testing ? 'Testing…' : 'Test flow'}
-            </button>
-            <button
-                onClick={handlePublish}
-                disabled={publishing}
-                className="rounded bg-gray-900 px-3.5 py-1.5 text-xs font-medium text-white disabled:opacity-50"
-            >
-              {publishing ? 'Publishing…' : 'Publish'}
-            </button>
-          </div>
+          )}
+          <select
+            value={documentType}
+            onChange={(e) => setDocumentType(e.target.value)}
+            className="rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm"
+          >
+            <option>Order</option>
+            <option>Invoice</option>
+          </select>
+          <Button onClick={openPayloadEditor} variant="outline" size="sm">
+            Sample payload
+          </Button>
+          <Button onClick={handleSave} variant="outline" size="sm">
+            Save draft
+          </Button>
+          <Button
+            onClick={handleTestFlow}
+            disabled={testing}
+            title="Runs the currently PUBLISHED flow, not unpublished draft changes"
+            variant="outline"
+            size="sm"
+          >
+            {testing ? 'Testing…' : 'Test flow'}
+          </Button>
+          <Button onClick={handlePublish} disabled={publishing} size="sm">
+            {publishing ? 'Publishing…' : 'Publish'}
+          </Button>
         </div>
+      </div>
 
-        {testResult && (
-            <div
-                className={`shrink-0 border-b px-5 py-2.5 text-xs ${
-                    testResult.validationStatus === 'failed'
-                        ? 'border-red-100 bg-red-50 text-red-800'
-                        : testResult.validationStatus === 'passed'
-                            ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
-                            : testResult.status === 'SUCCEEDED'
-                                ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
-                                : 'border-red-100 bg-red-50 text-red-800'
-                }`}
-            >
-              <div className="flex items-center justify-between">
+      {testResult && (
+        <div
+          className={`shrink-0 border-b px-5 py-2.5 text-xs ${
+            testResult.validationStatus === 'failed'
+              ? 'border-red-100 bg-red-50 text-red-800'
+              : testResult.validationStatus === 'passed'
+                ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
+                : testResult.status === 'SUCCEEDED'
+                  ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
+                  : 'border-red-100 bg-red-50 text-red-800'
+          }`}
+        >
+          <div className="flex items-center justify-between">
             <span className="font-medium">
               {testResult.validationStatus
-                  ? `Validation: ${testResult.validationStatus === 'failed' ? 'FAILED' : 'PASSED'}`
-                  : `Execution: ${testResult.status}`}
+                ? `Validation: ${testResult.validationStatus === 'failed' ? 'FAILED' : 'PASSED'}`
+                : `Execution: ${testResult.status}`}
               {testResult.validationStatus && (
-                  <span className="ml-2 font-normal text-gray-400">(execution {testResult.status})</span>
+                <span className="ml-2 font-normal text-gray-400">(execution {testResult.status})</span>
               )}
             </span>
-                <button onClick={() => setTestResult(null)} className="text-gray-400 hover:text-gray-700">
-                  ✕
-                </button>
-              </div>
-              {Boolean(testResult.error || testResult.output) && (
-                  <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px]">
+            <button onClick={() => setTestResult(null)} className="text-gray-400 hover:text-gray-700">
+              ✕
+            </button>
+          </div>
+          {Boolean(testResult.error || testResult.output) && (
+            <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px]">
               {testResult.error ? `${testResult.error}: ${testResult.cause}` : JSON.stringify(testResult.output, null, 2)}
             </pre>
-              )}
-            </div>
-        )}
+          )}
+        </div>
+      )}
 
-        <div className="flex min-h-0 flex-1">
-          <NodePalette />
-          <div ref={canvasRef} className="relative flex-1" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
-            {nodes.length === 0 && (
-                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-                  <button
-                      onClick={addStartNode}
-                      className="pointer-events-auto rounded-lg border border-dashed border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-600 shadow-sm hover:border-gray-400 hover:text-gray-900"
-                  >
-                    + Add start node
-                  </button>
-                </div>
-            )}
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                onNodeClick={(_, n) => setSelectedId(n.id)}
-                onNodeDragStop={onNodeDragStop}
-                onPaneClick={() => setSelectedId(null)}
-                nodeTypes={nodeTypes}
-                edgeTypes={edgeTypes}
-                fitView
-            >
-              <Background color="#E4E7EC" gap={20} />
-              <Controls />
-            </ReactFlow>
+      <div className="flex min-h-0 flex-1">
+        <NodePalette />
+        <div ref={canvasRef} className="relative flex-1" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+          {nodes.length === 0 && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+              <button
+                onClick={addStartNode}
+                className="pointer-events-auto rounded-lg border border-dashed border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-600 shadow-sm hover:border-gray-400 hover:text-gray-900"
+              >
+                + Add start node
+              </button>
+            </div>
+          )}
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeClick={(_, n) => setSelectedId(n.id)}
+            onNodeDragStop={onNodeDragStop}
+            onPaneClick={() => setSelectedId(null)}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            fitView
+          >
+            <Background color="#E4E7EC" gap={20} />
+            <Controls />
+          </ReactFlow>
+        </div>
+      </div>
+
+      {selectedNode && selectedNode.type !== 'loopContainer' && (
+        <SidePanel title={getNodeType(selectedNode.data.nodeType).label} onClose={() => setSelectedId(null)}>
+          <NodeConfigPanel
+            nodeId={selectedNode.id}
+            nodeType={selectedNode.data.nodeType}
+            config={selectedNode.data.config}
+            onConfigChange={(patch) => updateNodeConfig(selectedNode.id, patch)}
+            onDelete={() => deleteNode(selectedNode.id)}
+            samplePayload={samplePayload}
+            actionSampleResponses={actionSampleResponses}
+            onCaptureResponse={handleCaptureActionResponse}
+          />
+        </SidePanel>
+      )}
+      {selectedNode && selectedNode.type === 'loopContainer' && (
+        <SidePanel title="Repeat For Each" onClose={() => setSelectedId(null)}>
+          <NodeConfigPanel
+            nodeId={selectedNode.id}
+            nodeType="repeatForEach"
+            config={selectedNode.data.config}
+            onConfigChange={(patch) => updateNodeConfig(selectedNode.id, patch)}
+            onDelete={() => deleteNode(selectedNode.id)}
+            samplePayload={samplePayload}
+            actionSampleResponses={actionSampleResponses}
+            onCaptureResponse={handleCaptureActionResponse}
+          />
+        </SidePanel>
+      )}
+
+      {editingPayload && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/30">
+          <div className="w-[32rem] rounded-lg bg-white p-4 shadow-xl">
+            <h2 className="mb-2 text-sm font-medium text-gray-900">Sample payload</h2>
+            <p className="mb-2 text-xs text-gray-500">
+              Drives the field picker in node config - browse instead of typing raw paths.
+            </p>
+            <textarea
+              className="h-64 w-full rounded border border-gray-200 p-2 font-mono text-xs"
+              value={payloadDraft}
+              onChange={(e) => setPayloadDraft(e.target.value)}
+            />
+            <div className="mt-3 flex justify-end gap-2">
+              <Button onClick={() => setEditingPayload(false)} variant="outline" size="sm">
+                Cancel
+              </Button>
+              <Button onClick={savePayloadEditor} size="sm">
+                Save
+              </Button>
+            </div>
           </div>
         </div>
-
-        {selectedNode && selectedNode.type !== 'loopContainer' && (
-            <SidePanel title={getNodeType(selectedNode.data.nodeType).label} onClose={() => setSelectedId(null)}>
-              <NodeConfigPanel
-                  nodeId={selectedNode.id}
-                  nodeType={selectedNode.data.nodeType}
-                  config={selectedNode.data.config}
-                  onConfigChange={(patch) => updateNodeConfig(selectedNode.id, patch)}
-                  onDelete={() => deleteNode(selectedNode.id)}
-                  samplePayload={samplePayload}
-                  actionSampleResponses={actionSampleResponses}
-                  onCaptureResponse={handleCaptureActionResponse}
-              />
-            </SidePanel>
-        )}
-        {selectedNode && selectedNode.type === 'loopContainer' && (
-            <SidePanel title="Repeat For Each" onClose={() => setSelectedId(null)}>
-              <NodeConfigPanel
-                  nodeId={selectedNode.id}
-                  nodeType="repeatForEach"
-                  config={selectedNode.data.config}
-                  onConfigChange={(patch) => updateNodeConfig(selectedNode.id, patch)}
-                  onDelete={() => deleteNode(selectedNode.id)}
-                  samplePayload={samplePayload}
-                  actionSampleResponses={actionSampleResponses}
-                  onCaptureResponse={handleCaptureActionResponse}
-              />
-            </SidePanel>
-        )}
-
-        {editingPayload && (
-            <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/30">
-              <div className="w-[32rem] rounded-lg bg-white p-4 shadow-xl">
-                <h2 className="mb-2 text-sm font-medium text-gray-900">Sample payload</h2>
-                <p className="mb-2 text-xs text-gray-500">
-                  Drives the field picker in node config - browse instead of typing raw paths.
-                </p>
-                <textarea
-                    className="h-64 w-full rounded border border-gray-200 p-2 font-mono text-xs"
-                    value={payloadDraft}
-                    onChange={(e) => setPayloadDraft(e.target.value)}
-                />
-                <div className="mt-3 flex justify-end gap-2">
-                  <button
-                      onClick={() => setEditingPayload(false)}
-                      className="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                      onClick={savePayloadEditor}
-                      className="rounded bg-gray-900 px-3.5 py-1.5 text-xs font-medium text-white"
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            </div>
-        )}
-      </div>
+      )}
+    </div>
   );
 }
 
 export default function FlowBuilderPage() {
   return (
-      <ReactFlowProvider>
-        <CanvasInner />
-      </ReactFlowProvider>
+    <ReactFlowProvider>
+      <CanvasInner />
+    </ReactFlowProvider>
   );
 }
