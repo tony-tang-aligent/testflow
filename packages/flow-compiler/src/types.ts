@@ -71,7 +71,19 @@ export interface ConfigField {
   // instead of typing a raw dot-path by hand. Used for fieldPath/comparedTo/
   // arrayPath specifically; plain 'text' stays for things like URLs, emails,
   // messages that were never meant to reference a payload field at all.
-  kind: 'text' | 'textarea' | 'select' | 'checkboxGroup' | 'fieldPicker';
+  // 'keyValueMapper' is a dynamic add/remove list of {key, value} rows, each
+  // value supporting {{payload.x}} interpolation - the actual data-mapper
+  // piece for the HTTP action node (see nodeRegistry.ts's httpCall entry).
+  kind: 'text' | 'textarea' | 'select' | 'checkboxGroup' | 'fieldPicker' | 'keyValueMapper';
   placeholder?: string;
   options?: string[]; // for 'select' and 'checkboxGroup'
+}
+
+export interface KeyValueRow {
+  id: string;
+  key: string;
+  // A plain string that may contain {{payload.x}} placeholders, resolved via
+  // the same interpolate() function already used by emailAlert/slackAlert -
+  // one shared resolution mechanism, not a second parallel one for this node.
+  value: string;
 }

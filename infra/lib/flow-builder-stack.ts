@@ -40,6 +40,16 @@ export class FlowBuilderStack extends cdk.Stack {
       runtime: Runtime.NODEJS_20_X,
       timeout: cdk.Duration.seconds(30),
     });
+    // The HTTP action node's auth support (API Key/Bearer/Basic) reads a
+    // referenced secret at runtime - see httpActionResolver.ts's naming
+    // convention (flow-builder-secrets/{name}, a flat namespace since this
+    // system has no per-tenant concept, unlike the original validator).
+    flowExecutorFn.addToRolePolicy(
+        new iam.PolicyStatement({
+          actions: ['secretsmanager:GetSecretValue'],
+          resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:flow-builder-secrets/*`],
+        }),
+    );
 
     const flowStateMachineRole = new iam.Role(this, 'FlowStateMachineRole', {
       assumedBy: new iam.ServicePrincipal('states.amazonaws.com'),
@@ -158,6 +168,29 @@ export class FlowBuilderStack extends cdk.Stack {
       path: '/document-types/{documentType}/published',
       methods: [apigwv2.HttpMethod.GET],
       integration: new integrations.HttpLambdaIntegration('PublishedFlowLookupIntegration', publishedFlowLookupFn),
+    });
+
+    // The HTTP action node's "Send test request" button - resolves + sends a
+    // real request using the exact same resolver flowExecutor uses, so
+    // testing and actually running can never diverge. See the SECURITY NOTE
+    // in httpActionResolver.ts - deliberately not hardened against SSRF,
+    // an explicit, flagged tradeoff given this system's current internal/
+    // trusted-partner trust boundary, not an oversight.
+    const testHttpActionFn = new lambda.NodejsFunction(this, 'TestHttpActionFn', {
+      entry: path.join(__dirname, '../lambda/testHttpAction/index.ts'),
+      runtime: Runtime.NODEJS_20_X,
+      timeout: cdk.Duration.seconds(20),
+    });
+    testHttpActionFn.addToRolePolicy(
+        new iam.PolicyStatement({
+          actions: ['secretsmanager:GetSecretValue'],
+          resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:flow-builder-secrets/*`],
+        }),
+    );
+    httpApi.addRoutes({
+      path: '/test-http-action',
+      methods: [apigwv2.HttpMethod.POST],
+      integration: new integrations.HttpLambdaIntegration('TestHttpActionIntegration', testHttpActionFn),
     });
 
     new cdk.CfnOutput(this, 'FlowBuilderApiUrl', { value: httpApi.apiEndpoint });

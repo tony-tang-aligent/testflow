@@ -14,6 +14,8 @@
 // compiler.ts's resultKey logic) and $.iterationResults (checks inside a
 // repeatForEach, collected per-item by the Map state itself).
 
+import { resolveHttpRequest, HttpActionConfig } from '../flowBuilderShared/httpActionResolver';
+
 interface ExecutorEvent {
   nodeId: string;
   nodeType: string;
@@ -88,9 +90,12 @@ async function runAction(nodeType: string, config: Record<string, unknown>, item
       });
       return;
     case 'httpCall': {
-      const url = interpolate(String(config.url ?? ''), item);
-      await fetch(url, { method: (config.method as string) ?? 'GET' }).catch((err) =>
-          console.error('httpCall action failed (fire-and-forget, not retried):', err),
+      // Real request now, not a bare fetch(url) with no headers/body/auth -
+      // built via the SAME resolver the "send test request" button uses, so
+      // testing a request and actually sending it can never diverge.
+      const request = await resolveHttpRequest(config as HttpActionConfig, item);
+      await fetch(request.url, { method: request.method, headers: request.headers, body: request.body }).catch(
+          (err) => console.error('httpCall action failed (fire-and-forget, not retried):', err),
       );
       return;
     }

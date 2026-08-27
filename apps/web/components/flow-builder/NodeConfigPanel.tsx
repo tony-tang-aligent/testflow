@@ -2,15 +2,18 @@
 //
 // Content only, no wrapping frame - rendered INSIDE the shared SidePanel
 // component (components/SidePanel.tsx, the same one the original validator
-// uses) rather than reimplementing a second right-docked panel. This is what
-// makes "the flow-builder should look like Shopify Flow, like the rest of
-// the app already does" literally true, not just visually similar - it's the
-// same component, reused. The palette stays visible at all times now; this
-// panel is an additional overlay on top, not a replacement for it.
+// uses) rather than reimplementing a second right-docked panel. The palette
+// stays visible at all times; this panel is an additional overlay on top.
+//
+// httpCall gets one extra thing every other node type doesn't: a Postman-
+// style "Send test request" panel, using the exact same resolver the real
+// executor uses server-side (infra/lambda/flowBuilderShared/httpActionResolver.ts).
 
-import React from 'react';
-import { getNodeType, NodeCategory } from '@workspace/flow-compiler';
+import React, { useState } from 'react';
+import { getNodeType, NodeCategory, KeyValueRow } from '@workspace/flow-compiler';
 import { FieldPicker } from './FieldPicker';
+import { KeyValueMapper } from './KeyValueMapper';
+import { flowBuilderApi } from '../../lib/flowBuilderApi';
 
 const CATEGORY_ACCENT: Record<NodeCategory, string> = {
     control: '#F0A93E',
@@ -20,6 +23,13 @@ const CATEGORY_ACCENT: Record<NodeCategory, string> = {
     aggregation: '#E8577A',
     output: '#22C55E',
 };
+
+interface TestResponse {
+    request: { url: string; method: string; headers: Record<string, string>; body?: string };
+    response?: { status: number; statusText: string; headers: Record<string, string>; body: string; timeMs: number };
+    error?: string;
+    timeMs?: number;
+}
 
 export function NodeConfigPanel({
                                     nodeType,
@@ -36,6 +46,21 @@ export function NodeConfigPanel({
 }) {
     const def = getNodeType(nodeType);
     const accent = CATEGORY_ACCENT[def.category];
+    const [sending, setSending] = useState(false);
+    const [testResult, setTestResult] = useState<TestResponse | null>(null);
+
+    async function handleSendTest() {
+        setSending(true);
+        setTestResult(null);
+        try {
+            const result = await flowBuilderApi.testHttpAction(config, samplePayload ?? {});
+            setTestResult(result);
+        } catch (err) {
+            setTestResult({ request: { url: '', method: '' }, error: (err as Error).message });
+        } finally {
+            setSending(false);
+        }
+    }
 
     return (
         <div>
@@ -65,18 +90,16 @@ export function NodeConfigPanel({
                         </label>
                         {field.kind === 'fieldPicker' ? (
                             <FieldPicker
-                                // Wrapped in { payload: ... }, not the raw sample payload -
-                                // this is what actually reaches the executor at runtime
-                                // (see testPublishedFlow's execution input and the compiler's
-                                // 'item.$': '$$.Execution.Input'). Without this wrap, every
-                                // path the picker generated (e.g. "lineItems.0.price") pointed
-                                // at a location that doesn't exist in the real runtime data
-                                // (which needs "payload.lineItems.0.price") - checks built via
-                                // the picker would silently never find their target field.
                                 samplePayload={samplePayload ? { payload: samplePayload } : undefined}
                                 value={String(config[field.key] ?? '')}
                                 onChange={(v) => onConfigChange({ [field.key]: v })}
                                 placeholder={field.placeholder}
+                            />
+                        ) : field.kind === 'keyValueMapper' ? (
+                            <KeyValueMapper
+                                rows={(config[field.key] as KeyValueRow[]) ?? []}
+                                onChange={(rows) => onConfigChange({ [field.key]: rows })}
+                                samplePayload={samplePayload}
                             />
                         ) : field.kind === 'textarea' ? (
                             <textarea
@@ -109,10 +132,74 @@ export function NodeConfigPanel({
                     </div>
                 ))}
 
-                {!samplePayload && def.configFields.some((f) => f.kind === 'fieldPicker') && (
+                {!samplePayload && def.configFields.some((f) => f.kind === 'fieldPicker' || f.kind === 'keyValueMapper') && (
                     <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-700">
                         Set a sample payload (top bar) to browse fields instead of typing paths by hand.
                     </p>
+                )}
+
+                {nodeType === 'httpCall' && (
+                    <div className="border-t border-gray-100 pt-4">
+                        <button
+                            onClick={handleSendTest}
+                            disabled={sending || !config.url}
+                            className="w-full rounded bg-gray-900 px-3 py-2 text-xs font-medium text-white disabled:opacity-40"
+                        >
+                            {sending ? 'Sending…' : 'Send test request'}
+                        </button>
+
+                        {testResult && (
+                            <div className="mt-3 space-y-2 rounded border border-gray-200 bg-gray-50 p-3">
+                                {testResult.error ? (
+                                    <p className="text-xs text-red-600">{testResult.error}</p>
+                                ) : testResult.response ? (
+                                    <>
+                                        <div className="flex items-center gap-2">
+                      <span
+                          className={`rounded px-1.5 py-0.5 text-xs font-semibold ${
+                              testResult.response.status < 300
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : testResult.response.status < 400
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : 'bg-red-100 text-red-800'
+                          }`}
+                      >
+                        {testResult.response.status} {testResult.response.statusText}
+                      </span>
+                                            <span className="text-xs text-gray-400">{testResult.response.timeMs}ms</span>
+                                        </div>
+                                        <details className="text-xs">
+                                            <summary className="cursor-pointer text-gray-500 hover:text-gray-800">
+                                                Request sent ({testResult.request.method})
+                                            </summary>
+                                            <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded bg-white p-2 font-mono text-[10px]">
+                        {testResult.request.url}
+                                                {'\n'}
+                                                {JSON.stringify(testResult.request.headers, null, 2)}
+                                                {testResult.request.body ? `\n\n${testResult.request.body}` : ''}
+                      </pre>
+                                        </details>
+                                        <details className="text-xs" open>
+                                            <summary className="cursor-pointer text-gray-500 hover:text-gray-800">
+                                                Response headers
+                                            </summary>
+                                            <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded bg-white p-2 font-mono text-[10px]">
+                        {JSON.stringify(testResult.response.headers, null, 2)}
+                      </pre>
+                                        </details>
+                                        <details className="text-xs" open>
+                                            <summary className="cursor-pointer text-gray-500 hover:text-gray-800">
+                                                Response body
+                                            </summary>
+                                            <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-white p-2 font-mono text-[10px]">
+                        {testResult.response.body || '(empty)'}
+                      </pre>
+                                        </details>
+                                    </>
+                                ) : null}
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
         </div>

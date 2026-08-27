@@ -57,4 +57,17 @@ export const flowBuilderApi = {
         request<{ published: { flowId: string; publishedAt: string } | null }>(
             `/document-types/${encodeURIComponent(documentType)}/published`,
         ),
+    // Postman-style "Send test request" - resolves + sends a real request using
+    // the exact same resolver the live executor uses server-side, so this is a
+    // genuine test of what will actually happen, not a separate simulation.
+    testHttpAction: (config: Record<string, unknown>, samplePayload: Record<string, unknown>) =>
+        request<{
+            request: { url: string; method: string; headers: Record<string, string>; body?: string };
+            response?: { status: number; statusText: string; headers: Record<string, string>; body: string; timeMs: number };
+            error?: string;
+            timeMs?: number;
+        }>('/test-http-action', {
+            method: 'POST',
+            body: JSON.stringify({ config, samplePayload }),
+        }),
 };

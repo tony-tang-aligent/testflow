@@ -153,7 +153,16 @@ function compileChain(
       states[node.id] = {
         Type: 'Task',
         Resource: resourceArnFor(node.type),
-        Parameters: { nodeId: node.id, nodeType: node.type, 'item.$': '$$.Execution.Input' },
+        // '$', not '$$.Execution.Input' - this was the actual bug behind
+        // aggregatedResult always coming back empty regardless of real
+        // violations. $$.Execution.Input is a FIXED snapshot of what the
+        // execution started with - it never includes checkResults, since
+        // that field doesn't exist until earlier Task states write it via
+        // their own ResultPath, well after execution begins. errorAggregator
+        // specifically needs the CURRENT state at the point it runs, not the
+        // pristine original input - it's the one node whose entire job is
+        // reading what everything before it just wrote.
+        Parameters: { nodeId: node.id, nodeType: node.type, 'item.$': '$' },
         ResultPath: '$.aggregatedResult',
         ...(nextName ? { Next: nextName } : { End: true }),
       };
