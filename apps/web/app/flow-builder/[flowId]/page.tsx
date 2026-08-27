@@ -46,6 +46,7 @@ function CanvasInner() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{
     status: string;
+    validationStatus?: 'passed' | 'failed';
     output?: unknown;
     error?: string;
     cause?: string;
@@ -331,13 +332,29 @@ function CanvasInner() {
         {testResult && (
             <div
                 className={`shrink-0 border-b px-5 py-2.5 text-xs ${
-                    testResult.status === 'SUCCEEDED'
-                        ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
-                        : 'border-red-100 bg-red-50 text-red-800'
+                    // Colored by the REAL verdict when one exists (did the document
+                    // pass validation), not the execution's own SUCCEEDED/FAILED -
+                    // those are genuinely different things. A check correctly
+                    // finding a violation is a normal, error-free SUCCEEDED
+                    // execution; showing that in green was actively misleading.
+                    testResult.validationStatus === 'failed'
+                        ? 'border-red-100 bg-red-50 text-red-800'
+                        : testResult.validationStatus === 'passed'
+                            ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
+                            : testResult.status === 'SUCCEEDED'
+                                ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
+                                : 'border-red-100 bg-red-50 text-red-800'
                 }`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-medium">Test run: {testResult.status}</span>
+            <span className="font-medium">
+              {testResult.validationStatus
+                  ? `Validation: ${testResult.validationStatus === 'failed' ? 'FAILED' : 'PASSED'}`
+                  : `Execution: ${testResult.status}`}
+              {testResult.validationStatus && (
+                  <span className="ml-2 font-normal text-gray-400">(execution {testResult.status})</span>
+              )}
+            </span>
                 <button onClick={() => setTestResult(null)} className="text-gray-400 hover:text-gray-700">
                   ✕
                 </button>

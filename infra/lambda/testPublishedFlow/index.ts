@@ -20,6 +20,37 @@ function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
     return { statusCode, body: JSON.stringify(body), headers: { 'content-type': 'application/json' } };
 }
 
+interface CheckResult {
+    passed: boolean;
+    violation?: { fieldPath?: string; rule?: string; expected?: unknown; actual?: unknown };
+}
+
+/** Real verdict, not the execution's own SUCCEEDED/FAILED status. Checks
+ * three places, in order of how directly they answer the question:
+ *   1. errorAggregator's own output, if it ran (the most complete answer -
+ *      it already merged top-level + per-item violations, see compiler.ts)
+ *   2. Raw top-level checkResults, if errorAggregator never ran (the
+ *      all-checks-passed path skips it entirely, per the compiled Choice)
+ *   3. undefined if neither exists - not every flow necessarily has checks
+ *      wired to produce either shape, and guessing "passed" in that case
+ *      would be worse than admitting we don't know. */
+function deriveValidationStatus(output: unknown): 'passed' | 'failed' | undefined {
+    if (!output || typeof output !== 'object') return undefined;
+    const o = output as {
+        aggregatedResult?: { status?: string };
+        checkResults?: Record<string, CheckResult>;
+    };
+
+    if (o.aggregatedResult?.status) {
+        return o.aggregatedResult.status === 'failed' ? 'failed' : 'passed';
+    }
+    if (o.checkResults) {
+        const anyFailed = Object.values(o.checkResults).some((r) => r.passed === false);
+        return anyFailed ? 'failed' : 'passed';
+    }
+    return undefined;
+}
+
 export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
     const method = event.requestContext.http.method;
 
@@ -48,9 +79,21 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
         if (!executionArn) return json(400, { message: 'executionArn query param required' });
 
         const result = await sfnClient.send(new DescribeExecutionCommand({ executionArn }));
+        const output = result.output ? JSON.parse(result.output) : undefined;
+
         return json(200, {
             status: result.status,
-            output: result.output ? JSON.parse(result.output) : undefined,
+            output,
+            // A real, distinct verdict - "SUCCEEDED" only ever means the state
+            // machine ran without an unhandled error. It says NOTHING about
+            // whether the document actually passed validation - a check that
+            // correctly finds a violation and routes to errorAggregator still
+            // completes as a perfectly normal, error-free SUCCEEDED execution.
+            // checkResults is populated by every top-level check regardless of
+            // which branch it took afterward (the Task sets it before the Choice
+            // state ever reads it), so this is reliable on both the pass and fail
+            // paths, not just when errorAggregator happened to run.
+            validationStatus: deriveValidationStatus(output),
             error: result.error,
             cause: result.cause,
         });

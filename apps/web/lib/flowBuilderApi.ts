@@ -46,9 +46,13 @@ export const flowBuilderApi = {
             body: JSON.stringify({ documentType, payload }),
         }),
     getExecutionStatus: (executionArn: string) =>
-        request<{ status: string; output?: unknown; error?: string; cause?: string }>(
-            `/test-flow?executionArn=${encodeURIComponent(executionArn)}`,
-        ),
+        request<{
+            status: string;
+            validationStatus?: 'passed' | 'failed';
+            output?: unknown;
+            error?: string;
+            cause?: string;
+        }>(`/test-flow?executionArn=${encodeURIComponent(executionArn)}`),
     getPublishedFlow: (documentType: string) =>
         request<{ published: { flowId: string; publishedAt: string } | null }>(
             `/document-types/${encodeURIComponent(documentType)}/published`,
