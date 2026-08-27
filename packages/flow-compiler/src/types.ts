@@ -16,6 +16,18 @@ export interface FlowNode {
   position: { x: number; y: number };
   config: Record<string, unknown>; // shape defined by the node type's configSchema
   label?: string;
+  // Which repeatForEach node (if any) this one is nested inside - a real,
+  // explicit containment relationship, not an implicit one inferred from
+  // edge reachability. That's the actual UX fix: repeatForEach renders as a
+  // resizable container on the canvas (see LoopContainerNode.tsx), and
+  // dragging a node inside its visual boundary is what sets this field -
+  // membership is now something you can SEE, not something you'd have to
+  // trace edges to figure out.
+  parentId?: string;
+  // Only meaningful for repeatForEach - its own size as a container. Other
+  // node types ignore this entirely.
+  width?: number;
+  height?: number;
 }
 
 export interface FlowEdge {

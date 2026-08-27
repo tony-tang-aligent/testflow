@@ -20,31 +20,17 @@ export interface GraphValidationRule {
   check: (graph: FlowGraph) => GraphViolation[];
 }
 
-/** Finds every node reachable inside a repeatForEach's nested sub-chain, by
- * walking forward from any node whose only path in comes from a repeatForEach
- * node, until reaching a node with no further outgoing edges within the loop
- * (an errorAggregator/workflowResult boundary ends the nested chain). This is
- * a simple reachability walk, not general graph analysis - deliberately
- * cheap, matching the constrained model (spec §5-6). */
+/** Every node with parentId set to a repeatForEach's own id - a real,
+ * explicit containment relationship (see types.ts's FlowNode.parentId), not
+ * an edge-reachability walk. This replaces what used to be a forward BFS
+ * from repeatForEach's outgoing edges - simpler AND more correct, since
+ * membership is now something you can literally see on the canvas (a node
+ * dragged inside the container's visual boundary) rather than something that
+ * could accidentally happen just because an edge happened to route through
+ * a node. */
 function findNodesInsideIteration(graph: FlowGraph): Set<string> {
-  const inside = new Set<string>();
-  const iterationRoots = graph.nodes.filter((n) => n.type === 'repeatForEach');
-
-  for (const root of iterationRoots) {
-    const queue = graph.edges.filter((e) => e.source === root.id).map((e) => e.target);
-    const visited = new Set<string>();
-    while (queue.length) {
-      const nodeId = queue.shift()!;
-      if (visited.has(nodeId)) continue;
-      visited.add(nodeId);
-      const node = graph.nodes.find((n) => n.id === nodeId);
-      if (!node) continue;
-      if (node.type === 'errorAggregator' || node.type === 'workflowResult') continue;
-      inside.add(nodeId);
-      for (const e of graph.edges.filter((e) => e.source === nodeId)) queue.push(e.target);
-    }
-  }
-  return inside;
+  const iterationRootIds = new Set(graph.nodes.filter((n) => n.type === 'repeatForEach').map((n) => n.id));
+  return new Set(graph.nodes.filter((n) => n.parentId && iterationRootIds.has(n.parentId)).map((n) => n.id));
 }
 
 const noActionNodesInsideIteration: GraphValidationRule = {
@@ -60,6 +46,24 @@ const noActionNodesInsideIteration: GraphValidationRule = {
           nodeId,
           ruleId: 'noActionNodesInsideIteration',
           message: `"${def.label}" can't run inside a Repeat For Each - action nodes must run once per flow, not once per item.`,
+        });
+      }
+    }
+    return violations;
+  },
+};
+
+const noDanglingParent: GraphValidationRule = {
+  id: 'noDanglingParent',
+  check(graph) {
+    const nodeIds = new Set(graph.nodes.map((n) => n.id));
+    const violations: GraphViolation[] = [];
+    for (const node of graph.nodes) {
+      if (node.parentId && !nodeIds.has(node.parentId)) {
+        violations.push({
+          nodeId: node.id,
+          ruleId: 'noDanglingParent',
+          message: `This node's container was deleted - drag it out of the empty space and back into a loop, or delete it.`,
         });
       }
     }
@@ -109,8 +113,8 @@ const noGraphCycles: GraphValidationRule = {
   check(graph) {
     const violations: GraphViolation[] = [];
     const WHITE = 0,
-      GRAY = 1,
-      BLACK = 2;
+        GRAY = 1,
+        BLACK = 2;
     const color = new Map(graph.nodes.map((n) => [n.id, WHITE]));
 
     function visit(nodeId: string): boolean {
@@ -142,6 +146,7 @@ export const VALIDATION_RULES: GraphValidationRule[] = [
   noActionNodesInsideIteration,
   noActionNodeOutput,
   noDanglingEdges,
+  noDanglingParent,
   noGraphCycles,
 ];
 

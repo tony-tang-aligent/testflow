@@ -39,18 +39,26 @@ function outgoing(graph: FlowGraph, nodeId: string, handle?: 'true' | 'false' | 
   return graph.edges.filter((e) => e.source === nodeId && (handle ? e.sourceHandle === handle : true));
 }
 
+/** Same containment set the validator uses (parentId, not edge-reachability)
+ * - kept as its own function here rather than imported, so the compiler
+ * stays independently readable per this file's existing convention. */
 function nestedChainNodeIds(graph: FlowGraph, repeatNodeId: string): Set<string> {
-  const inside = new Set<string>();
-  const queue = outgoing(graph, repeatNodeId).map((e) => e.target);
-  while (queue.length) {
-    const id = queue.shift()!;
-    if (inside.has(id)) continue;
-    const node = nodeById(graph, id);
-    if (node.type === 'errorAggregator' || node.type === 'workflowResult') continue;
-    inside.add(id);
-    for (const e of outgoing(graph, id)) queue.push(e.target);
-  }
-  return inside;
+  return new Set(graph.nodes.filter((n) => n.parentId === repeatNodeId).map((n) => n.id));
+}
+
+/** Among a container's children, the one nothing else in the SAME container
+ * points at - i.e. no sibling edge targets it. This is the actual
+ * simplification the container redesign enables: repeatForEach no longer
+ * needs an outgoing edge of its own at all. Previously its single outgoing
+ * edge was what identified the first nested node; now that membership is
+ * spatial (parentId) rather than edge-based, the entry point is just
+ * whichever child has no incoming edge FROM ANOTHER CHILD - derived, not
+ * drawn. */
+function findEntryChild(graph: FlowGraph, childIds: Set<string>): string | undefined {
+  const targetedBySibling = new Set(
+      graph.edges.filter((e) => childIds.has(e.source) && childIds.has(e.target)).map((e) => e.target),
+  );
+  return [...childIds].find((id) => !targetedBySibling.has(id));
 }
 
 function compileChain(
@@ -123,10 +131,13 @@ function compileChain(
 
     case 'repeatForEach': {
       const nestedIds = nestedChainNodeIds(graph, node.id);
-      const firstNested = outgoing(graph, node.id)[0];
+      // No outgoing edge of its own needed anymore - the entry point is
+      // derived from container membership, not drawn as a connection from
+      // the repeatForEach node itself. See findEntryChild's comment for why.
+      const entryChildId = findEntryChild(graph, nestedIds);
       const itemProcessorStates: Record<string, AslState> = {};
-      const itemStart = firstNested
-          ? compileChain(graph, firstNested.target, itemProcessorStates, nestedIds)
+      const itemStart = entryChildId
+          ? compileChain(graph, entryChildId, itemProcessorStates, nestedIds)
           : undefined;
 
       const resumeEdge = [...nestedIds]

@@ -14,6 +14,7 @@ import ReactFlow, {
   Controls,
   useReactFlow,
   Node,
+  NodeDragHandler,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import type { FlowGraph, GraphViolation } from '@workspace/flow-compiler';
@@ -22,13 +23,35 @@ import { flowBuilderApi } from '../../../lib/flowBuilderApi';
 import { NodePalette } from '../../../components/flow-builder/NodePalette';
 import { NodeConfigPanel } from '../../../components/flow-builder/NodeConfigPanel';
 import { FlowNodeCard, FlowNodeCardData } from '../../../components/flow-builder/FlowNodeCard';
+import { LoopContainerNode, LoopContainerData } from '../../../components/flow-builder/LoopContainerNode';
 import { DeletableEdge, DeletableEdgeData } from '../../../components/edges/DeletableEdge';
 import { SidePanel } from '../../../components/SidePanel';
 
 const nodeTypes = {
   flowNode: ({ data }: { data: FlowNodeCardData }) => <FlowNodeCard data={data} />,
+  loopContainer: ({ data }: { data: LoopContainerData }) => <LoopContainerNode data={data} />,
 };
 const edgeTypes = { deletable: DeletableEdge };
+
+const LOOP_DEFAULT_WIDTH = 420;
+const LOOP_DEFAULT_HEIGHT = 280;
+
+/** Which container (if any) a point falls inside, in absolute canvas
+ * coordinates - used both when dropping a brand-new node from the palette
+ * and when dragging an existing one. Only checks top-level containers
+ * (nested loops aren't supported - same scope boundary as before this
+ * redesign, just enforced differently now). */
+function findContainerAt(
+    point: { x: number; y: number },
+    allNodes: Node<FlowNodeCardData | LoopContainerData>[],
+): Node<LoopContainerData> | undefined {
+  return allNodes.find((n): n is Node<LoopContainerData> => {
+    if (n.type !== 'loopContainer') return false;
+    const w = n.width ?? LOOP_DEFAULT_WIDTH;
+    const h = n.height ?? LOOP_DEFAULT_HEIGHT;
+    return point.x >= n.position.x && point.x <= n.position.x + w && point.y >= n.position.y && point.y <= n.position.y + h;
+  });
+}
 
 function CanvasInner() {
   const params = useParams<{ flowId: string }>();
@@ -36,13 +59,10 @@ function CanvasInner() {
 
   const [documentType, setDocumentType] = useState('Order');
   const [samplePayload, setSamplePayload] = useState<Record<string, unknown> | undefined>(undefined);
-  // Keyed by nodeId - each successful "Send test request" on an httpCall node
-  // persists its response body here, so every OTHER node's field picker can
-  // browse into it too. See types.ts's FlowGraph.actionSampleResponses.
   const [actionSampleResponses, setActionSampleResponses] = useState<Record<string, unknown>>({});
   const [editingPayload, setEditingPayload] = useState(false);
   const [payloadDraft, setPayloadDraft] = useState('');
-  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNodeCardData>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNodeCardData | LoopContainerData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [violations, setViolations] = useState<GraphViolation[]>([]);
@@ -60,15 +80,16 @@ function CanvasInner() {
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const violationsByNode = new Map(violations.map((v) => [v.nodeId, v.message]));
-  const selectedNode = nodes.find((n) => n.id === selectedId);
+  const selectedNode = nodes.find((n) => n.id === selectedId) as Node<FlowNodeCardData> | undefined;
 
   const decorate = useCallback(
-      (n: Node<FlowNodeCardData>): Node<FlowNodeCardData> => ({
+      (n: Node<FlowNodeCardData | LoopContainerData>): Node<FlowNodeCardData | LoopContainerData> => ({
         ...n,
-        type: 'flowNode',
-        // Top-level ReactFlow field, not just data.selected (used for card
-        // styling) - without this, ReactFlow's own keyboard-delete handling has
-        // nothing to act on, since it looks at this field, not custom data.
+        // Preserve whichever type this node actually is - a real bug this
+        // fixes: decorate() previously hardcoded 'flowNode' unconditionally,
+        // which would have silently overwritten a loop container's type on
+        // every selection/violation change.
+        type: n.type,
         selected: n.id === selectedId,
         data: {
           ...n.data,
@@ -88,12 +109,23 @@ function CanvasInner() {
           setDocumentType(graph.documentType);
           setSamplePayload(graph.samplePayload);
           setActionSampleResponses(graph.actionSampleResponses ?? {});
+
+          // ReactFlow REQUIRES a parent node to appear before its children in
+          // the nodes array - repeatForEach nodes sorted first covers this for
+          // the one level of nesting this system supports.
+          const sortedNodes = [...graph.nodes].sort((a, b) =>
+              a.type === 'repeatForEach' && b.type !== 'repeatForEach' ? -1 : 0,
+          );
+
           setNodes(
-              graph.nodes.map((n) =>
+              sortedNodes.map((n) =>
                   decorate({
                     id: n.id,
                     position: n.position,
-                    type: 'flowNode',
+                    type: n.type === 'repeatForEach' ? 'loopContainer' : 'flowNode',
+                    parentNode: n.parentId,
+                    extent: n.parentId ? 'parent' : undefined,
+                    style: n.type === 'repeatForEach' ? { width: n.width ?? LOOP_DEFAULT_WIDTH, height: n.height ?? LOOP_DEFAULT_HEIGHT } : undefined,
                     data: { nodeType: n.type, config: n.config, hasError: false, selected: false },
                   }),
               ),
@@ -133,6 +165,9 @@ function CanvasInner() {
   }
 
   function deleteNode(nodeId: string) {
+    // Deleting a container orphans its children rather than deleting them
+    // too - noDanglingParent (validator.ts) catches this and surfaces it as
+    // a clear violation rather than silently losing work.
     setNodes((nds) => nds.filter((n) => n.id !== nodeId));
     setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
     setSelectedId(null);
@@ -142,10 +177,6 @@ function CanvasInner() {
     setEdges((eds) => eds.filter((e) => e.id !== edgeId));
   }
 
-  // Persists a successful "Send test request" response immediately, not just
-  // in local state until the next manual save - the whole point is that
-  // OTHER nodes' field pickers can browse it right away, and that it
-  // survives a page reload rather than only lasting the current session.
   async function handleCaptureActionResponse(nodeId: string, body: unknown) {
     const updated = { ...actionSampleResponses, [nodeId]: body };
     setActionSampleResponses(updated);
@@ -166,20 +197,71 @@ function CanvasInner() {
     e.preventDefault();
     const nodeType = e.dataTransfer.getData('application/flow-node-type');
     if (!nodeType) return;
-    const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+    const absolutePosition = screenToFlowPosition({ x: e.clientX, y: e.clientY });
     const id = `${nodeType}_${Date.now()}`;
+
+    if (nodeType === 'repeatForEach') {
+      // Containers can't nest inside each other - same scope boundary as
+      // before, just no longer possible to even attempt by accident, since
+      // this branch never checks for or sets a parent.
+      setNodes((nds) => [
+        ...nds,
+        decorate({
+          id,
+          position: absolutePosition,
+          type: 'loopContainer',
+          style: { width: LOOP_DEFAULT_WIDTH, height: LOOP_DEFAULT_HEIGHT },
+          data: { nodeType, config: {}, hasError: false, selected: false },
+        }),
+      ]);
+      return;
+    }
+
+    const container = findContainerAt(absolutePosition, nodes);
+    const position = container
+        ? { x: absolutePosition.x - container.position.x, y: absolutePosition.y - container.position.y }
+        : absolutePosition;
+
     setNodes((nds) => [
       ...nds,
-      decorate({ id, position, type: 'flowNode', data: { nodeType, config: {}, hasError: false, selected: false } }),
+      decorate({
+        id,
+        position,
+        type: 'flowNode',
+        parentNode: container?.id,
+        extent: container ? 'parent' : undefined,
+        data: { nodeType, config: {}, hasError: false, selected: false },
+      }),
     ]);
   }
 
-  // Client-side safety net - flowDrafts.ts's POST handler auto-adds a start
-  // node to any NEW draft, but that only helps going forward. This covers
-  // any draft that was already empty before that fix existed (or if this
-  // page is being tested against a backend that hasn't picked up that change
-  // yet) - same node, same fixed shape, just added here instead of at
-  // creation time.
+  // Dragging an EXISTING node in or out of a container - onDrop above only
+  // covers brand-new nodes from the palette. This is the other half: moving
+  // something already on the canvas across a container's boundary.
+  const onNodeDragStop: NodeDragHandler = (_, draggedNode) => {
+    if (draggedNode.type === 'loopContainer') return; // containers themselves never get parented
+
+    const currentParent = nodes.find((n) => n.id === draggedNode.parentNode);
+    const absolutePosition = currentParent
+        ? { x: draggedNode.position.x + currentParent.position.x, y: draggedNode.position.y + currentParent.position.y }
+        : draggedNode.position;
+
+    const newContainer = findContainerAt(absolutePosition, nodes.filter((n) => n.id !== draggedNode.id));
+    if ((newContainer?.id ?? undefined) === draggedNode.parentNode) return; // no change
+
+    const newPosition = newContainer
+        ? { x: absolutePosition.x - newContainer.position.x, y: absolutePosition.y - newContainer.position.y }
+        : absolutePosition;
+
+    setNodes((nds) =>
+        nds.map((n) =>
+            n.id === draggedNode.id
+                ? { ...n, position: newPosition, parentNode: newContainer?.id, extent: newContainer ? 'parent' : undefined }
+                : n,
+        ),
+    );
+  };
+
   function addStartNode() {
     setNodes([
       decorate({
@@ -197,7 +279,15 @@ function CanvasInner() {
       documentType,
       samplePayload,
       actionSampleResponses,
-      nodes: nodes.map((n) => ({ id: n.id, type: n.data.nodeType, position: n.position, config: n.data.config })),
+      nodes: nodes.map((n) => ({
+        id: n.id,
+        type: (n.data as FlowNodeCardData).nodeType,
+        position: n.position,
+        config: n.data.config,
+        parentId: n.parentNode,
+        width: n.type === 'loopContainer' ? (n.width ?? LOOP_DEFAULT_WIDTH) : undefined,
+        height: n.type === 'loopContainer' ? (n.height ?? LOOP_DEFAULT_HEIGHT) : undefined,
+      })),
       edges: edges.map((e) => ({
         id: e.id,
         source: e.source,
@@ -239,10 +329,6 @@ function CanvasInner() {
     }
   }
 
-  // Runs whatever's currently PUBLISHED for this document type - not the
-  // draft being edited live. If you just changed something, Publish first or
-  // this tests the old version. Polls every 1.5s since Step Functions
-  // executions are async, same reasoning as the original validator's test-now.
   async function handleTestFlow() {
     setTesting(true);
     setTestResult(null);
@@ -348,11 +434,6 @@ function CanvasInner() {
         {testResult && (
             <div
                 className={`shrink-0 border-b px-5 py-2.5 text-xs ${
-                    // Colored by the REAL verdict when one exists (did the document
-                    // pass validation), not the execution's own SUCCEEDED/FAILED -
-                    // those are genuinely different things. A check correctly
-                    // finding a violation is a normal, error-free SUCCEEDED
-                    // execution; showing that in green was actively misleading.
                     testResult.validationStatus === 'failed'
                         ? 'border-red-100 bg-red-50 text-red-800'
                         : testResult.validationStatus === 'passed'
@@ -403,6 +484,7 @@ function CanvasInner() {
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
                 onNodeClick={(_, n) => setSelectedId(n.id)}
+                onNodeDragStop={onNodeDragStop}
                 onPaneClick={() => setSelectedId(null)}
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}
@@ -414,11 +496,25 @@ function CanvasInner() {
           </div>
         </div>
 
-        {selectedNode && (
+        {selectedNode && selectedNode.type !== 'loopContainer' && (
             <SidePanel title={getNodeType(selectedNode.data.nodeType).label} onClose={() => setSelectedId(null)}>
               <NodeConfigPanel
                   nodeId={selectedNode.id}
                   nodeType={selectedNode.data.nodeType}
+                  config={selectedNode.data.config}
+                  onConfigChange={(patch) => updateNodeConfig(selectedNode.id, patch)}
+                  onDelete={() => deleteNode(selectedNode.id)}
+                  samplePayload={samplePayload}
+                  actionSampleResponses={actionSampleResponses}
+                  onCaptureResponse={handleCaptureActionResponse}
+              />
+            </SidePanel>
+        )}
+        {selectedNode && selectedNode.type === 'loopContainer' && (
+            <SidePanel title="Repeat For Each" onClose={() => setSelectedId(null)}>
+              <NodeConfigPanel
+                  nodeId={selectedNode.id}
+                  nodeType="repeatForEach"
                   config={selectedNode.data.config}
                   onConfigChange={(patch) => updateNodeConfig(selectedNode.id, patch)}
                   onDelete={() => deleteNode(selectedNode.id)}
