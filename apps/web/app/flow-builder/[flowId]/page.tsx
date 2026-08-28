@@ -13,6 +13,7 @@ import ReactFlow, {
   Background,
   Controls,
   useReactFlow,
+  useUpdateNodeInternals,
   Node,
   NodeDragHandler,
 } from 'reactflow';
@@ -58,6 +59,13 @@ function CanvasInner() {
   const params = useParams<{ flowId: string }>();
   const router = useRouter();
   const { screenToFlowPosition } = useReactFlow();
+  // Required whenever a node's parentNode/position relationship changes
+  // AFTER its initial mount (exactly what dragging into a container does) -
+  // without this, ReactFlow's own internal handle-position cache goes
+  // stale, and connections to/from that node's handles can fail to
+  // register correctly. This was the actual missing piece, not a CSS/
+  // z-index issue - a documented ReactFlow requirement, not a guess.
+  const updateNodeInternals = useUpdateNodeInternals();
 
   const [documentType, setDocumentType] = useState('Order');
   const [samplePayload, setSamplePayload] = useState<Record<string, unknown> | undefined>(undefined);
@@ -185,6 +193,18 @@ function CanvasInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.flowId]);
 
+  // Nodes saved in an existing draft (added before updateNodeInternals was
+  // wired into onDrop/onNodeDragStop) never got their handle internals
+  // registered when their parentNode was originally set - a fresh page
+  // load alone doesn't retroactively fix that. Doing it once here for every
+  // child, after the initial load completes, so already-saved loop contents
+  // work correctly too, not just newly-added ones going forward.
+  useEffect(() => {
+    if (loading) return;
+    nodes.filter((n) => n.parentNode).forEach((n) => updateNodeInternals(n.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   useEffect(() => {
     setNodes((nds) => nds.map(decorate));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -281,6 +301,7 @@ function CanvasInner() {
         data: { nodeType, config: {}, hasError: false, selected: false },
       }),
     ]);
+    if (container) setTimeout(() => updateNodeInternals(id), 0);
 
     if (container) {
       const tailId = findChainTailInContainer(container.id);
@@ -318,6 +339,7 @@ function CanvasInner() {
           : n,
       ),
     );
+    setTimeout(() => updateNodeInternals(draggedNode.id), 0);
 
     // Same auto-wire as onDrop - moving an EXISTING node into a container
     // shouldn't require a separate manual reconnection any more than a

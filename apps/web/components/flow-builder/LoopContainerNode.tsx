@@ -48,7 +48,13 @@ export function LoopContainerNode({ data }: { data: LoopContainerData }) {
       <Handle type="target" position={Position.Top} className="!h-3.5 !w-3.5 !border-2 !border-outline !bg-background" />
 
       <div
-        className={`relative h-full w-full rounded-lg border border-dashed bg-surface-container-lowest ${
+        // /90, not fully solid - ReactFlow renders edges BEHIND nodes by
+        // default, so an incoming edge terminating right at this
+        // container's own top-edge handle was getting visually covered by
+        // this background. Making it slightly translucent keeps that edge
+        // visible instead of trying to globally override ReactFlow's
+        // stacking order, which would be a much bigger change.
+        className={`relative h-full w-full rounded-lg border border-dashed bg-surface-container-lowest/90 ${
           data.hasError ? 'border-error' : 'border-outline'
         }`}
         style={data.hasError ? { animation: 'flowNodePulse 1.8s ease-in-out infinite' } : undefined}
