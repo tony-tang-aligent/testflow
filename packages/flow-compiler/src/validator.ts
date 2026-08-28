@@ -142,11 +142,42 @@ const noGraphCycles: GraphValidationRule = {
   },
 };
 
+/** The exact bug reported live: a node inside a container can end up with an
+ * edge connecting it DIRECTLY from something outside that container -
+ * typically a leftover from before it was dragged in. Left alone, this
+ * silently bypasses the container entirely: the compiler's outer traversal
+ * follows edges, never notices the container exists, and never compiles it
+ * as a Map state at all - no error, just silently wrong output. Catching it
+ * here means it's a clear validation message before publish, not a
+ * mysteriously-missing loop discovered only by inspecting the deployed ASL. */
+const noBypassingContainerEdges: GraphValidationRule = {
+  id: 'noBypassingContainerEdges',
+  check(graph) {
+    const violations: GraphViolation[] = [];
+    for (const edge of graph.edges) {
+      const target = graph.nodes.find((n) => n.id === edge.target);
+      if (!target?.parentId) continue; // target isn't inside any container - fine
+      const source = graph.nodes.find((n) => n.id === edge.source);
+      const sourceIsSibling = source?.parentId === target.parentId;
+      const sourceIsOwnContainer = edge.source === target.parentId;
+      if (!sourceIsSibling && !sourceIsOwnContainer) {
+        violations.push({
+          nodeId: target.id,
+          ruleId: 'noBypassingContainerEdges',
+          message: `This node is inside a loop, but has a connection coming from outside it - that bypasses the loop entirely instead of running inside it. Connect to the loop container itself instead.`,
+        });
+      }
+    }
+    return violations;
+  },
+};
+
 export const VALIDATION_RULES: GraphValidationRule[] = [
   noActionNodesInsideIteration,
   noActionNodeOutput,
   noDanglingEdges,
   noDanglingParent,
+  noBypassingContainerEdges,
   noGraphCycles,
 ];
 

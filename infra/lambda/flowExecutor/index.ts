@@ -35,12 +35,12 @@ interface ExecutorEvent {
 function getPath(obj: unknown, path: string): unknown {
   if (!path) return obj;
   return path
-    .split(/[.[\]]/)
-    .filter(Boolean)
-    .reduce<unknown>((acc, key) => {
-      if (acc == null) return undefined;
-      return (acc as Record<string, unknown>)[key];
-    }, obj);
+      .split(/[.[\]]/)
+      .filter(Boolean)
+      .reduce<unknown>((acc, key) => {
+        if (acc == null) return undefined;
+        return (acc as Record<string, unknown>)[key];
+      }, obj);
 }
 
 function interpolate(template: string, item: Record<string, unknown>): string {
@@ -61,8 +61,8 @@ function runCheck(config: Record<string, unknown>, item: Record<string, unknown>
   // for every check already built before this existed.
   const rawCompareValue = config.compareValue;
   const looksLikeFieldPath =
-    typeof rawCompareValue === 'string' &&
-    (rawCompareValue.startsWith('payload.') || rawCompareValue.startsWith('actionResults.'));
+      typeof rawCompareValue === 'string' &&
+      (rawCompareValue.startsWith('payload.') || rawCompareValue.startsWith('actionResults.'));
   const compareValue = looksLikeFieldPath ? getPath(item, rawCompareValue as string) : rawCompareValue;
   let passed: boolean;
 
@@ -89,8 +89,8 @@ function runCheck(config: Record<string, unknown>, item: Record<string, unknown>
   return {
     passed,
     violation: passed
-      ? undefined
-      : { fieldPath: config.fieldPath, rule: config.rule, expected: compareValue, actual: value },
+        ? undefined
+        : { fieldPath: config.fieldPath, rule: config.rule, expected: compareValue, actual: value },
   };
 }
 
@@ -175,13 +175,21 @@ export const handler = async (event: ExecutorEvent) => {
       const state = item as {
         documentType?: string;
         payload?: unknown;
-        iterationResults?: Array<{ violation?: unknown }>;
+        // Each iteration's result is the WHOLE item merged with checkResult
+        // (ResultPath: '$.checkResult' merges into the item, it doesn't
+        // replace it) - not a bare {violation} object. Reading r.violation
+        // directly here was the actual bug: that path never had anything,
+        // so every loop's violations were silently dropped regardless of
+        // how many items really failed.
+        iterationResults?: Array<{ checkResult?: { violation?: unknown } }>;
         checkResults?: Record<string, { violation?: unknown }>;
       };
-      const fromIteration = (state.iterationResults ?? []).map((r) => r.violation).filter(Boolean);
+      const fromIteration = (state.iterationResults ?? [])
+          .map((r) => r.checkResult?.violation)
+          .filter(Boolean);
       const fromTopLevel = Object.values(state.checkResults ?? {})
-        .map((r) => r.violation)
-        .filter(Boolean);
+          .map((r) => r.violation)
+          .filter(Boolean);
       const violations = [...fromTopLevel, ...fromIteration];
       const result = { violations, status: violations.length > 0 ? 'failed' : ('passed' as const) };
 
@@ -196,25 +204,25 @@ export const handler = async (event: ExecutorEvent) => {
         const s3Key = `${state.documentType ?? 'unknown'}/${event.executionId}.json`;
         try {
           await s3.send(
-            new PutObjectCommand({
-              Bucket: DETAIL_BUCKET,
-              Key: s3Key,
-              Body: JSON.stringify({ payload: state.payload, checkResults: state.checkResults, violations }),
-              ContentType: 'application/json',
-            }),
+              new PutObjectCommand({
+                Bucket: DETAIL_BUCKET,
+                Key: s3Key,
+                Body: JSON.stringify({ payload: state.payload, checkResults: state.checkResults, violations }),
+                ContentType: 'application/json',
+              }),
           );
           await ddb.send(
-            new PutCommand({
-              TableName: SUMMARY_TABLE,
-              Item: {
-                documentType: state.documentType ?? 'unknown',
-                evaluatedAt,
-                executionId: event.executionId,
-                status: result.status,
-                violationCount: violations.length,
-                s3Key,
-              },
-            }),
+              new PutCommand({
+                TableName: SUMMARY_TABLE,
+                Item: {
+                  documentType: state.documentType ?? 'unknown',
+                  evaluatedAt,
+                  executionId: event.executionId,
+                  status: result.status,
+                  violationCount: violations.length,
+                  s3Key,
+                },
+              }),
           );
         } catch (err) {
           console.error('Failed to persist execution history (validation result itself is unaffected):', err);

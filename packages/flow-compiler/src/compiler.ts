@@ -56,29 +56,71 @@ function nestedChainNodeIds(graph: FlowGraph, repeatNodeId: string): Set<string>
  * drawn. */
 function findEntryChild(graph: FlowGraph, childIds: Set<string>): string | undefined {
   const targetedBySibling = new Set(
-    graph.edges.filter((e) => childIds.has(e.source) && childIds.has(e.target)).map((e) => e.target),
+      graph.edges.filter((e) => childIds.has(e.source) && childIds.has(e.target)).map((e) => e.target),
   );
   return [...childIds].find((id) => !targetedBySibling.has(id));
 }
 
+/** Resolves what a node's Next should actually be, given an edge target -
+ * NOT the same as just calling compileChain and using its return value,
+ * which always returns the node's id even when the boundary check stops it
+ * from actually compiling. Without this, a check node inside a loop whose
+ * "continue" edge points at errorAggregator (outside the loop) would end up
+ * with a literal "Next": "errorAggregator_..." inside the Map's
+ * ItemProcessor.States - but errorAggregator was never actually compiled
+ * there, so that's a dangling reference to a state that doesn't exist in
+ * that scope. Step Functions requires every Next within a given
+ * States object to resolve to a state defined in that SAME object - the
+ * real transition out of a loop happens at the Map state's own level (via
+ * repeatForEach's resumeEdge/resumeName), never from within an individual
+ * item's own chain. If the target is out of bounds, this chain simply ends
+ * here (End: true) instead of pointing at something that isn't there. */
+function resolveNext(
+    graph: FlowGraph,
+    targetId: string | undefined,
+    states: Record<string, AslState>,
+    boundaryNodeIds?: Set<string>,
+): string | undefined {
+  if (!targetId) return undefined;
+  if (boundaryNodeIds && !boundaryNodeIds.has(targetId)) return undefined;
+  return compileChain(graph, targetId, states, boundaryNodeIds);
+}
+
 function compileChain(
-  graph: FlowGraph,
-  startNodeId: string,
-  states: Record<string, AslState>,
-  boundaryNodeIds?: Set<string>,
+    graph: FlowGraph,
+    startNodeId: string,
+    states: Record<string, AslState>,
+    boundaryNodeIds?: Set<string>,
 ): string {
   const node = nodeById(graph, startNodeId);
   if (states[node.id]) return node.id;
   const def = getNodeType(node.type);
 
-  if (boundaryNodeIds && !boundaryNodeIds.has(node.id) && node.type !== 'errorAggregator') {
+  if (boundaryNodeIds && !boundaryNodeIds.has(node.id)) {
+    // No longer excepts errorAggregator - that exception was the actual bug.
+    // A check node INSIDE a loop resolving its own "continue" edge to
+    // errorAggregator (outside the loop) would hit this same boundary check,
+    // and the exception let it slip through anyway - compiling errorAggregator
+    // (and whatever's downstream of it, like workflowResult) DIRECTLY INTO
+    // the loop's inner ItemProcessor.States, instead of stopping here and
+    // letting repeatForEach's own separate resumeEdge logic compile it once,
+    // correctly, into the OUTER state machine. Both ended up compiled TWICE -
+    // a malformed/duplicated ASL definition that AWS's CreateStateMachine
+    // call rejects, which (with no try/catch around that call) is exactly
+    // what turned into an uncaught exception and a 500. The exception was
+    // meant to let repeatForEach's OWN resumeEdge call reach errorAggregator
+    // even when repeatForEach itself is nested - but that call always passes
+    // boundaryNodeIds from repeatForEach's OWN nesting level, which is
+    // undefined for every loop this project actually supports (nested loops
+    // are out of scope), so this check never even applies there. The
+    // exception was never needed for the case it was protecting.
     return node.id;
   }
 
   switch (node.type) {
     case 'documentInput': {
       const next = outgoing(graph, node.id)[0];
-      const nextName = next ? compileChain(graph, next.target, states, boundaryNodeIds) : undefined;
+      const nextName = resolveNext(graph, next?.target, states, boundaryNodeIds);
       states[node.id] = { Type: 'Pass', ...(nextName ? { Next: nextName } : { End: true }) };
       return node.id;
     }
@@ -89,7 +131,7 @@ function compileChain(
       const failEdge = outgoing(graph, node.id, 'false')[0];
       const continueEdge = outgoing(graph, node.id, 'true')[0] ?? outgoing(graph, node.id, 'default')[0];
 
-      const continueName = continueEdge ? compileChain(graph, continueEdge.target, states, boundaryNodeIds) : undefined;
+      const continueName = resolveNext(graph, continueEdge?.target, states, boundaryNodeIds);
 
       // Inside an iteration's item processor, each invocation is independent
       // and the Map state itself collects one result per item into
@@ -113,17 +155,25 @@ function compileChain(
         // payload against an earlier httpCall's captured response.
         Parameters: { nodeId: node.id, nodeType: node.type, config: node.config, 'item.$': '$' },
         ResultPath: resultKey,
-        Next: failEdge ? taskName + '_Choice' : (continueName ?? taskName),
-        ...(continueName ? {} : { End: !failEdge }),
+        // Exactly one of these three, never Next+End together (a real,
+        // separate bug this fix exposed - see the comment on resolveNext).
+        ...(failEdge ? { Next: taskName + '_Choice' } : continueName ? { Next: continueName } : { End: true }),
       };
 
       if (failEdge) {
-        const failName = compileChain(graph, failEdge.target, states, boundaryNodeIds);
+        const failName = resolveNext(graph, failEdge.target, states, boundaryNodeIds);
         states[taskName + '_Choice'] = {
           Type: 'Choice',
-          Choices: [{ Variable: `${resultKey}.passed`, BooleanEquals: false, Next: failName }],
+          Choices: [{ Variable: `${resultKey}.passed`, BooleanEquals: false, Next: failName ?? taskName + '_FailNoOp' }],
           Default: continueName ?? taskName + '_NoOp',
         };
+        // Same reasoning as the continue-path's own NoOp fallback below - a
+        // Choice state's branches must each resolve to a REAL state in this
+        // same States object, they can't just terminate inline the way a
+        // Task's End:true can. If the fail edge's real target is outside
+        // this loop (out of bounds), this item's processing just ends here
+        // instead of dangling-referencing a state that isn't in this scope.
+        if (!failName) states[taskName + '_FailNoOp'] = { Type: 'Pass', End: true };
         if (!continueName) states[taskName + '_NoOp'] = { Type: 'Pass', End: true };
       }
       return node.id;
@@ -137,12 +187,12 @@ function compileChain(
       const entryChildId = findEntryChild(graph, nestedIds);
       const itemProcessorStates: Record<string, AslState> = {};
       const itemStart = entryChildId
-        ? compileChain(graph, entryChildId, itemProcessorStates, nestedIds)
-        : undefined;
+          ? compileChain(graph, entryChildId, itemProcessorStates, nestedIds)
+          : undefined;
 
       const resumeEdge = [...nestedIds]
-        .flatMap((id) => outgoing(graph, id))
-        .find((e) => !nestedIds.has(e.target));
+          .flatMap((id) => outgoing(graph, id))
+          .find((e) => !nestedIds.has(e.target));
       const resumeName = resumeEdge ? compileChain(graph, resumeEdge.target, states, boundaryNodeIds) : undefined;
 
       states[node.id] = {
@@ -167,7 +217,7 @@ function compileChain(
 
     case 'errorAggregator': {
       const next = outgoing(graph, node.id)[0];
-      const nextName = next ? compileChain(graph, next.target, states, boundaryNodeIds) : undefined;
+      const nextName = resolveNext(graph, next?.target, states, boundaryNodeIds);
       states[node.id] = {
         Type: 'Task',
         Resource: resourceArnFor(node.type),
@@ -194,9 +244,9 @@ function compileChain(
 
     case 'workflowResult': {
       states[node.id] =
-        node.config.returnResult === 'failed'
-          ? { Type: 'Fail', Error: 'ValidationFailed', Cause: 'One or more checks failed.' }
-          : { Type: 'Succeed' };
+          node.config.returnResult === 'failed'
+              ? { Type: 'Fail', Error: 'ValidationFailed', Cause: 'One or more checks failed.' }
+              : { Type: 'Succeed' };
       return node.id;
     }
 
@@ -209,7 +259,7 @@ function compileChain(
       // response available to a later check when it IS wired to continue
       // (only httpCall has canHaveOutput:true - see nodeRegistry.ts).
       const next = outgoing(graph, node.id)[0];
-      const nextName = next ? compileChain(graph, next.target, states, boundaryNodeIds) : undefined;
+      const nextName = resolveNext(graph, next?.target, states, boundaryNodeIds);
       states[node.id] = {
         Type: 'Task',
         Resource: resourceArnFor(node.type),

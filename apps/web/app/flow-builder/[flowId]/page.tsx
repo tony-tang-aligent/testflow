@@ -16,6 +16,8 @@ import ReactFlow, {
   useUpdateNodeInternals,
   Node,
   NodeDragHandler,
+  NodeChange,
+  OnNodesChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import type { FlowGraph, GraphViolation } from '@workspace/flow-compiler';
@@ -44,8 +46,8 @@ const LOOP_DEFAULT_HEIGHT = 280;
  * (nested loops aren't supported - same scope boundary as before this
  * redesign, just enforced differently now). */
 function findContainerAt(
-  point: { x: number; y: number },
-  allNodes: Node<FlowNodeCardData | LoopContainerData>[],
+    point: { x: number; y: number },
+    allNodes: Node<FlowNodeCardData | LoopContainerData>[],
 ): Node<LoopContainerData> | undefined {
   return allNodes.find((n): n is Node<LoopContainerData> => {
     if (n.type !== 'loopContainer') return false;
@@ -90,9 +92,9 @@ function CanvasInner() {
    * that already exists server-side in flowExecutor. */
   function getPath(obj: unknown, path: string): unknown {
     return path
-      .split('.')
-      .filter(Boolean)
-      .reduce<unknown>((acc, key) => (acc == null ? undefined : (acc as Record<string, unknown>)[key]), obj);
+        .split('.')
+        .filter(Boolean)
+        .reduce<unknown>((acc, key) => (acc == null ? undefined : (acc as Record<string, unknown>)[key]), obj);
   }
 
   /** The actual fix for the loop confusion: inside a repeatForEach, Step
@@ -113,30 +115,30 @@ function CanvasInner() {
   }
 
   const decorate = useCallback(
-    (n: Node<FlowNodeCardData | LoopContainerData>): Node<FlowNodeCardData | LoopContainerData> => ({
-      ...n,
-      // Preserve whichever type this node actually is - a real bug this
-      // fixes: decorate() previously hardcoded 'flowNode' unconditionally,
-      // which would have silently overwritten a loop container's type on
-      // every selection/violation change.
-      type: n.type,
-      selected: n.id === selectedId,
-      data: {
-        ...n.data,
+      (n: Node<FlowNodeCardData | LoopContainerData>): Node<FlowNodeCardData | LoopContainerData> => ({
+        ...n,
+        // Preserve whichever type this node actually is - a real bug this
+        // fixes: decorate() previously hardcoded 'flowNode' unconditionally,
+        // which would have silently overwritten a loop container's type on
+        // every selection/violation change.
+        type: n.type,
         selected: n.id === selectedId,
-        hasError: violationsByNode.has(n.id),
-        errorMessage: violationsByNode.get(n.id),
-        // Kept live here, not baked in once at construction time - a loop
-        // container's embedded field picker needs to reflect the CURRENT
-        // sample payload, including edits made after this node was created,
-        // not a frozen snapshot from whenever it was first added.
-        samplePayload,
-        onConfigChange: (patch: Record<string, unknown>) => updateNodeConfig(n.id, patch),
-        onDelete: () => deleteNode(n.id),
-      },
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedId, violations, samplePayload],
+        data: {
+          ...n.data,
+          selected: n.id === selectedId,
+          hasError: violationsByNode.has(n.id),
+          errorMessage: violationsByNode.get(n.id),
+          // Kept live here, not baked in once at construction time - a loop
+          // container's embedded field picker needs to reflect the CURRENT
+          // sample payload, including edits made after this node was created,
+          // not a frozen snapshot from whenever it was first added.
+          samplePayload,
+          onConfigChange: (patch: Record<string, unknown>) => updateNodeConfig(n.id, patch),
+          onDelete: () => deleteNode(n.id),
+        },
+      }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [selectedId, violations, samplePayload],
   );
 
   useEffect(() => {
@@ -146,50 +148,50 @@ function CanvasInner() {
 
   useEffect(() => {
     flowBuilderApi
-      .getDraft(params.flowId)
-      .then((graph) => {
-        setDocumentType(graph.documentType);
-        setSamplePayload(graph.samplePayload);
-        setActionSampleResponses(graph.actionSampleResponses ?? {});
+        .getDraft(params.flowId)
+        .then((graph) => {
+          setDocumentType(graph.documentType);
+          setSamplePayload(graph.samplePayload);
+          setActionSampleResponses(graph.actionSampleResponses ?? {});
 
-        // ReactFlow REQUIRES a parent node to appear before its children in
-        // the nodes array - repeatForEach nodes sorted first covers this for
-        // the one level of nesting this system supports.
-        const sortedNodes = [...graph.nodes].sort((a, b) =>
-          a.type === 'repeatForEach' && b.type !== 'repeatForEach' ? -1 : 0,
-        );
+          // ReactFlow REQUIRES a parent node to appear before its children in
+          // the nodes array - repeatForEach nodes sorted first covers this for
+          // the one level of nesting this system supports.
+          const sortedNodes = [...graph.nodes].sort((a, b) =>
+              a.type === 'repeatForEach' && b.type !== 'repeatForEach' ? -1 : 0,
+          );
 
-        setNodes(
-          sortedNodes.map((n) =>
-            decorate({
-              id: n.id,
-              position: n.position,
-              type: n.type === 'repeatForEach' ? 'loopContainer' : 'flowNode',
-              parentNode: n.parentId,
-              extent: n.parentId ? 'parent' : undefined,
-              style: n.type === 'repeatForEach' ? { width: n.width ?? LOOP_DEFAULT_WIDTH, height: n.height ?? LOOP_DEFAULT_HEIGHT } : undefined,
-              data: { nodeType: n.type, config: n.config, hasError: false, selected: false },
-            }),
-          ),
-        );
-        setEdges(
-          graph.edges.map((e) => ({
-            id: e.id,
-            source: e.source,
-            target: e.target,
-            sourceHandle: e.sourceHandle === 'default' ? undefined : e.sourceHandle,
-            type: 'deletable',
-            data: { onDelete: deleteEdge },
-            style:
-              e.sourceHandle === 'false'
-                ? { stroke: '#EF4444' }
-                : e.sourceHandle === 'true'
-                  ? { stroke: '#22C55E' }
-                  : undefined,
-          })),
-        );
-      })
-      .finally(() => setLoading(false));
+          setNodes(
+              sortedNodes.map((n) =>
+                  decorate({
+                    id: n.id,
+                    position: n.position,
+                    type: n.type === 'repeatForEach' ? 'loopContainer' : 'flowNode',
+                    parentNode: n.parentId,
+                    extent: n.parentId ? 'parent' : undefined,
+                    style: n.type === 'repeatForEach' ? { width: n.width ?? LOOP_DEFAULT_WIDTH, height: n.height ?? LOOP_DEFAULT_HEIGHT } : undefined,
+                    data: { nodeType: n.type, config: n.config, hasError: false, selected: false },
+                  }),
+              ),
+          );
+          setEdges(
+              graph.edges.map((e) => ({
+                id: e.id,
+                source: e.source,
+                target: e.target,
+                sourceHandle: e.sourceHandle === 'default' ? undefined : e.sourceHandle,
+                type: 'deletable',
+                data: { onDelete: deleteEdge },
+                style:
+                    e.sourceHandle === 'false'
+                        ? { stroke: '#EF4444' }
+                        : e.sourceHandle === 'true'
+                            ? { stroke: '#22C55E' }
+                            : undefined,
+              })),
+          );
+        })
+        .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.flowId]);
 
@@ -212,20 +214,79 @@ function CanvasInner() {
 
   function updateNodeConfig(nodeId: string, patch: Record<string, unknown>) {
     setNodes((nds) =>
-      nds.map((n) =>
-        n.id === nodeId ? { ...n, data: { ...n.data, config: { ...n.data.config, ...patch } } } : n,
-      ),
+        nds.map((n) =>
+            n.id === nodeId ? { ...n, data: { ...n.data, config: { ...n.data.config, ...patch } } } : n,
+        ),
     );
   }
 
   function deleteNode(nodeId: string) {
-    // Deleting a container orphans its children rather than deleting them
-    // too - noDanglingParent (validator.ts) catches this and surfaces it as
-    // a clear violation rather than silently losing work.
-    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+    // The actual fix: a child's parentNode must ALWAYS reference a real
+    // node, or ReactFlow's own internal position calculations crash
+    // immediately - "orphan the children, let noDanglingParent catch it at
+    // publish time" (the original design here) assumed the frontend would
+    // tolerate a dangling reference long enough to reach publish. It
+    // doesn't - it crashes the instant the parent leaves state, well before
+    // any validation runs. Converting each child's position to absolute
+    // canvas coordinates and clearing parentNode/extent keeps them as
+    // normal, un-parented nodes instead - still kept, not deleted, just no
+    // longer contained (matching the original intent, just implemented in
+    // a way that doesn't crash ReactFlow to get there).
+    const deletedNode = nodes.find((n) => n.id === nodeId);
+    setNodes((nds) =>
+        nds
+            .filter((n) => n.id !== nodeId)
+            .map((n) =>
+                n.parentNode === nodeId && deletedNode
+                    ? {
+                      ...n,
+                      position: { x: n.position.x + deletedNode.position.x, y: n.position.y + deletedNode.position.y },
+                      parentNode: undefined,
+                      extent: undefined,
+                    }
+                    : n,
+            ),
+    );
     setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
     setSelectedId(null);
+    const formerChildren = nodes.filter((n) => n.parentNode === nodeId);
+    if (formerChildren.length > 0) {
+      setTimeout(() => formerChildren.forEach((n) => updateNodeInternals(n.id)), 0);
+    }
   }
+
+  // The actual fix for the crash - onNodesChange fires BEFORE any separate
+  // onNodesDelete callback would, and the crash happens INSIDE ReactFlow's
+  // own processing of the 'remove' change itself (in createNodeInternals,
+  // synchronously, as soon as a child's parentNode no longer resolves).
+  // Wiring reparenting into deleteNode() alone wasn't enough - keyboard
+  // delete (select + Backspace) goes through onNodesChange directly,
+  // bypassing that function entirely. Intercepting every 'remove' change
+  // here, regardless of what triggered it, and reparenting children BEFORE
+  // letting the actual removal proceed, is what actually closes this for
+  // every deletion path, not just the one this was originally tested against.
+  const handleNodesChange: OnNodesChange = (changes) => {
+    const removedContainerIds = changes
+        .filter((c): c is Extract<NodeChange, { type: 'remove' }> => c.type === 'remove')
+        .map((c) => c.id)
+        .filter((id) => nodes.find((n) => n.id === id)?.type === 'loopContainer');
+
+    if (removedContainerIds.length > 0) {
+      setNodes((nds) =>
+          nds.map((n) => {
+            if (!n.parentNode || !removedContainerIds.includes(n.parentNode)) return n;
+            const container = nds.find((c) => c.id === n.parentNode)!;
+            return {
+              ...n,
+              position: { x: n.position.x + container.position.x, y: n.position.y + container.position.y },
+              parentNode: undefined,
+              extent: undefined,
+            };
+          }),
+      );
+    }
+    onNodesChange(changes);
+  };
 
   function deleteEdge(edgeId: string) {
     setEdges((eds) => eds.filter((e) => e.id !== edgeId));
@@ -239,11 +300,11 @@ function CanvasInner() {
 
   function onConnect(connection: Connection) {
     const style =
-      connection.sourceHandle === 'false'
-        ? { stroke: '#EF4444' }
-        : connection.sourceHandle === 'true'
-          ? { stroke: '#22C55E' }
-          : undefined;
+        connection.sourceHandle === 'false'
+            ? { stroke: '#EF4444' }
+            : connection.sourceHandle === 'true'
+                ? { stroke: '#22C55E' }
+                : undefined;
     setEdges((eds) => addEdge({ ...connection, type: 'deletable', data: { onDelete: deleteEdge }, style }, eds));
   }
 
@@ -256,7 +317,7 @@ function CanvasInner() {
     const childIds = new Set(nodes.filter((n) => n.parentNode === containerId && n.id !== excludeId).map((n) => n.id));
     if (childIds.size === 0) return undefined;
     const pointsAtSibling = new Set(
-      edges.filter((e) => childIds.has(e.source) && childIds.has(e.target)).map((e) => e.source),
+        edges.filter((e) => childIds.has(e.source) && childIds.has(e.target)).map((e) => e.source),
     );
     return [...childIds].find((id) => !pointsAtSibling.has(id));
   }
@@ -287,8 +348,8 @@ function CanvasInner() {
 
     const container = findContainerAt(absolutePosition, nodes);
     const position = container
-      ? { x: absolutePosition.x - container.position.x, y: absolutePosition.y - container.position.y }
-      : absolutePosition;
+        ? { x: absolutePosition.x - container.position.x, y: absolutePosition.y - container.position.y }
+        : absolutePosition;
 
     setNodes((nds) => [
       ...nds,
@@ -322,22 +383,22 @@ function CanvasInner() {
 
     const currentParent = nodes.find((n) => n.id === draggedNode.parentNode);
     const absolutePosition = currentParent
-      ? { x: draggedNode.position.x + currentParent.position.x, y: draggedNode.position.y + currentParent.position.y }
-      : draggedNode.position;
+        ? { x: draggedNode.position.x + currentParent.position.x, y: draggedNode.position.y + currentParent.position.y }
+        : draggedNode.position;
 
     const newContainer = findContainerAt(absolutePosition, nodes.filter((n) => n.id !== draggedNode.id));
     if ((newContainer?.id ?? undefined) === draggedNode.parentNode) return; // no change
 
     const newPosition = newContainer
-      ? { x: absolutePosition.x - newContainer.position.x, y: absolutePosition.y - newContainer.position.y }
-      : absolutePosition;
+        ? { x: absolutePosition.x - newContainer.position.x, y: absolutePosition.y - newContainer.position.y }
+        : absolutePosition;
 
     setNodes((nds) =>
-      nds.map((n) =>
-        n.id === draggedNode.id
-          ? { ...n, position: newPosition, parentNode: newContainer?.id, extent: newContainer ? 'parent' : undefined }
-          : n,
-      ),
+        nds.map((n) =>
+            n.id === draggedNode.id
+                ? { ...n, position: newPosition, parentNode: newContainer?.id, extent: newContainer ? 'parent' : undefined }
+                : n,
+        ),
     );
     setTimeout(() => updateNodeInternals(draggedNode.id), 0);
 
@@ -361,6 +422,24 @@ function CanvasInner() {
           },
         ]);
       }
+
+      // The actual bug this was reported against: a node dragged into a
+      // container often already HAD an incoming edge from something outside
+      // it (e.g. it used to be a top-level node connected straight from
+      // "start"). Left alone, that edge silently bypasses the container
+      // entirely - the compiler's outer traversal follows edges, sees
+      // "start -> fieldValidator" directly, and never even notices the
+      // repeatForEach exists, so it never compiles as a Map state at all.
+      // Redirecting any such edge to target the CONTAINER instead (not the
+      // child) is what actually keeps the outer flow's intent correct.
+      const childIds = new Set(nodes.filter((n) => n.parentNode === newContainer.id).map((n) => n.id));
+      setEdges((eds) =>
+          eds.map((e) =>
+              e.target === draggedNode.id && !childIds.has(e.source) && e.source !== newContainer.id
+                  ? { ...e, target: newContainer.id }
+                  : e,
+          ),
+      );
     }
   };
 
@@ -420,7 +499,7 @@ function CanvasInner() {
         setStatusMessage({
           type: 'error',
           text: `${violationErr.violations.length} issue${
-            violationErr.violations.length === 1 ? '' : 's'
+              violationErr.violations.length === 1 ? '' : 's'
           } - see highlighted nodes below.`,
         });
       } else {
@@ -465,158 +544,158 @@ function CanvasInner() {
   if (loading) return <p className="p-6 font-body-sm text-body-sm text-on-surface-variant">Loading…</p>;
 
   return (
-    <div className="flex h-screen flex-col bg-[#F7F8FB]">
-      <style>{`
+      <div className="flex h-screen flex-col bg-[#F7F8FB]">
+        <style>{`
         @keyframes flowNodePulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
           50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
         }
       `}</style>
 
-      <div className="flex shrink-0 items-center justify-between border-b border-outline-variant bg-surface px-5 py-2.5">
-        <div className="flex items-center gap-2 font-body-sm text-body-sm text-on-surface-variant">
-          <Link href="/flow-builder" className="hover:text-on-surface">
-            Dashboard
-          </Link>
-          <span>/</span>
-          <span className="font-medium text-on-surface">Flow Builder</span>
-        </div>
-        <div className="flex items-center gap-3">
-          {statusMessage && (
-            <span
-              className={`rounded px-2.5 py-1 text-xs font-medium ${
-                statusMessage.type === 'success' ? 'bg-secondary-container/20 text-secondary' : 'bg-error-container/20 text-error'
-              }`}
-            >
+        <div className="flex shrink-0 items-center justify-between border-b border-outline-variant bg-surface px-5 py-2.5">
+          <div className="flex items-center gap-2 font-body-sm text-body-sm text-on-surface-variant">
+            <Link href="/flow-builder" className="hover:text-on-surface">
+              Dashboard
+            </Link>
+            <span>/</span>
+            <span className="font-medium text-on-surface">Flow Builder</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {statusMessage && (
+                <span
+                    className={`rounded px-2.5 py-1 text-xs font-medium ${
+                        statusMessage.type === 'success' ? 'bg-secondary-container/20 text-secondary' : 'bg-error-container/20 text-error'
+                    }`}
+                >
               {statusMessage.text}
             </span>
-          )}
-          <select
-            value={documentType}
-            onChange={(e) => setDocumentType(e.target.value)}
-            className="rounded border border-outline-variant bg-background px-2 py-1 font-body-sm text-body-sm text-on-surface"
-          >
-            <option>Order</option>
-            <option>Invoice</option>
-          </select>
-          <Button onClick={openPayloadEditor} variant="outline" size="sm">
-            Sample payload
-          </Button>
-          <Button onClick={handleSave} variant="outline" size="sm">
-            Save draft
-          </Button>
-          <Button
-            onClick={handleTestFlow}
-            disabled={testing}
-            title="Runs the currently PUBLISHED flow, not unpublished draft changes"
-            variant="outline"
-            size="sm"
-          >
-            {testing ? 'Testing…' : 'Test flow'}
-          </Button>
-          <Link
-            href={`/flow-builder/${params.flowId}/executions`}
-            className="rounded-md border border-outline-variant px-3 py-1.5 font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-variant hover:text-on-surface"
-          >
-            History
-          </Link>
-          <Button onClick={handlePublish} disabled={publishing} size="sm">
-            {publishing ? 'Publishing…' : 'Publish'}
-          </Button>
-        </div>
-      </div>
-
-
-      <div className="flex min-h-0 flex-1">
-        <NodePalette />
-        <div ref={canvasRef} className="relative flex-1 bg-background" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
-          {nodes.length === 0 && (
-            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-              <button
-                onClick={addStartNode}
-                className="pointer-events-auto rounded-lg border border-dashed border-outline-variant bg-surface-container px-5 py-3 font-body-sm text-body-sm font-medium text-on-surface-variant shadow-sm hover:border-outline hover:text-on-surface"
-              >
-                + Add start node
-              </button>
-            </div>
-          )}
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={(_, n) => setSelectedId(n.id)}
-            onNodeDragStop={onNodeDragStop}
-            onPaneClick={() => setSelectedId(null)}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            fitView
-          >
-            <Background color="#464554" gap={20} />
-            <Controls />
-          </ReactFlow>
-        </div>
-      </div>
-
-      {selectedNode && selectedNode.type !== 'loopContainer' && (
-        <SidePanel title={getNodeType(selectedNode.data.nodeType).label} onClose={() => setSelectedId(null)}>
-          {selectedNode.parentNode && (
-            <div className="mb-4 rounded bg-primary-container/20 px-3 py-2 font-body-sm text-body-sm text-primary">
-              Inside a loop - fields below are relative to ONE item of the array being looped over, not the
-              full payload (e.g. "sku", not "payload.lineItems.0.sku").
-            </div>
-          )}
-          <NodeConfigPanel
-            nodeId={selectedNode.id}
-            nodeType={selectedNode.data.nodeType}
-            config={selectedNode.data.config}
-            onConfigChange={(patch) => updateNodeConfig(selectedNode.id, patch)}
-            onDelete={() => deleteNode(selectedNode.id)}
-            samplePayload={getEffectiveSamplePayload(selectedNode)}
-            actionSampleResponses={actionSampleResponses}
-            onCaptureResponse={handleCaptureActionResponse}
-            insideLoop={Boolean(selectedNode.parentNode)}
-            loopArrayPath={
-              selectedNode.parentNode
-                ? String(nodes.find((n) => n.id === selectedNode.parentNode)?.data.config?.arrayPath ?? '')
-                : undefined
-            }
-          />
-        </SidePanel>
-      )}
-
-      {editingPayload && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/30">
-          <div className="w-[32rem] rounded-lg bg-surface-container p-4 shadow-xl">
-            <h2 className="mb-2 font-headline-md text-headline-md text-on-surface">Sample payload</h2>
-            <p className="mb-2 font-body-sm text-body-sm text-on-surface-variant">
-              Drives the field picker in node config - browse instead of typing raw paths.
-            </p>
-            <textarea
-              className="h-64 w-full rounded border border-outline-variant bg-background p-2 font-code-base text-code-base text-on-surface"
-              value={payloadDraft}
-              onChange={(e) => setPayloadDraft(e.target.value)}
-            />
-            <div className="mt-3 flex justify-end gap-2">
-              <Button onClick={() => setEditingPayload(false)} variant="outline" size="sm">
-                Cancel
-              </Button>
-              <Button onClick={savePayloadEditor} size="sm">
-                Save
-              </Button>
-            </div>
+            )}
+            <select
+                value={documentType}
+                onChange={(e) => setDocumentType(e.target.value)}
+                className="rounded border border-outline-variant bg-background px-2 py-1 font-body-sm text-body-sm text-on-surface"
+            >
+              <option>Order</option>
+              <option>Invoice</option>
+            </select>
+            <Button onClick={openPayloadEditor} variant="outline" size="sm">
+              Sample payload
+            </Button>
+            <Button onClick={handleSave} variant="outline" size="sm">
+              Save draft
+            </Button>
+            <Button
+                onClick={handleTestFlow}
+                disabled={testing}
+                title="Runs the currently PUBLISHED flow, not unpublished draft changes"
+                variant="outline"
+                size="sm"
+            >
+              {testing ? 'Testing…' : 'Test flow'}
+            </Button>
+            <Link
+                href={`/flow-builder/${params.flowId}/executions`}
+                className="rounded-md border border-outline-variant px-3 py-1.5 font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-variant hover:text-on-surface"
+            >
+              History
+            </Link>
+            <Button onClick={handlePublish} disabled={publishing} size="sm">
+              {publishing ? 'Publishing…' : 'Publish'}
+            </Button>
           </div>
         </div>
-      )}
-    </div>
+
+
+        <div className="flex min-h-0 flex-1">
+          <NodePalette />
+          <div ref={canvasRef} className="relative flex-1 bg-background" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+            {nodes.length === 0 && (
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+                  <button
+                      onClick={addStartNode}
+                      className="pointer-events-auto rounded-lg border border-dashed border-outline-variant bg-surface-container px-5 py-3 font-body-sm text-body-sm font-medium text-on-surface-variant shadow-sm hover:border-outline hover:text-on-surface"
+                  >
+                    + Add start node
+                  </button>
+                </div>
+            )}
+            <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={handleNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                onNodeClick={(_, n) => setSelectedId(n.id)}
+                onNodeDragStop={onNodeDragStop}
+                onPaneClick={() => setSelectedId(null)}
+                nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
+                fitView
+            >
+              <Background color="#464554" gap={20} />
+              <Controls />
+            </ReactFlow>
+          </div>
+        </div>
+
+        {selectedNode && selectedNode.type !== 'loopContainer' && (
+            <SidePanel title={getNodeType(selectedNode.data.nodeType).label} onClose={() => setSelectedId(null)}>
+              {selectedNode.parentNode && (
+                  <div className="mb-4 rounded bg-primary-container/20 px-3 py-2 font-body-sm text-body-sm text-primary">
+                    Inside a loop - fields below are relative to ONE item of the array being looped over, not the
+                    full payload (e.g. "sku", not "payload.lineItems.0.sku").
+                  </div>
+              )}
+              <NodeConfigPanel
+                  nodeId={selectedNode.id}
+                  nodeType={selectedNode.data.nodeType}
+                  config={selectedNode.data.config}
+                  onConfigChange={(patch) => updateNodeConfig(selectedNode.id, patch)}
+                  onDelete={() => deleteNode(selectedNode.id)}
+                  samplePayload={getEffectiveSamplePayload(selectedNode)}
+                  actionSampleResponses={actionSampleResponses}
+                  onCaptureResponse={handleCaptureActionResponse}
+                  insideLoop={Boolean(selectedNode.parentNode)}
+                  loopArrayPath={
+                    selectedNode.parentNode
+                        ? String(nodes.find((n) => n.id === selectedNode.parentNode)?.data.config?.arrayPath ?? '')
+                        : undefined
+                  }
+              />
+            </SidePanel>
+        )}
+
+        {editingPayload && (
+            <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/30">
+              <div className="w-[32rem] rounded-lg bg-surface-container p-4 shadow-xl">
+                <h2 className="mb-2 font-headline-md text-headline-md text-on-surface">Sample payload</h2>
+                <p className="mb-2 font-body-sm text-body-sm text-on-surface-variant">
+                  Drives the field picker in node config - browse instead of typing raw paths.
+                </p>
+                <textarea
+                    className="h-64 w-full rounded border border-outline-variant bg-background p-2 font-code-base text-code-base text-on-surface"
+                    value={payloadDraft}
+                    onChange={(e) => setPayloadDraft(e.target.value)}
+                />
+                <div className="mt-3 flex justify-end gap-2">
+                  <Button onClick={() => setEditingPayload(false)} variant="outline" size="sm">
+                    Cancel
+                  </Button>
+                  <Button onClick={savePayloadEditor} size="sm">
+                    Save
+                  </Button>
+                </div>
+              </div>
+            </div>
+        )}
+      </div>
   );
 }
 
 export default function FlowBuilderPage() {
   return (
-    <ReactFlowProvider>
-      <CanvasInner />
-    </ReactFlowProvider>
+      <ReactFlowProvider>
+        <CanvasInner />
+      </ReactFlowProvider>
   );
 }
