@@ -1,10 +1,16 @@
 // apps/web/components/flow-builder/LoopContainerNode.tsx
 //
-// Matches the design spec's own loop-container treatment exactly
-// (surface-container-lowest + dashed outline + a floating label chip), not
-// a generic amber-tinted box - the spec already designed this pattern, this
-// just ports it in. Material Symbols "repeat" icon instead of an emoji, for
-// consistency with the rest of this icon system.
+// arrayPath is now editable directly in the header, via the real FieldPicker
+// component (not a plain text stand-in) - not opened in the side panel
+// anymore. That panel's full-screen invisible backdrop closes on any click
+// outside it, which is fine for a normal node (configure one thing, move on)
+// but was actively fighting this node's actual workflow: you need to keep
+// dragging children into it and connecting them WHILE it's "selected." Since
+// arrayPath was its only config field anyway, moving it inline removes the
+// side panel from this node type entirely, rather than working around the
+// backdrop. FieldPicker itself has no backdrop of its own (a plain
+// absolutely-positioned dropdown, closes only via its own toggle button), so
+// embedding it here doesn't reintroduce the same problem.
 //
 // Deliberately only a TARGET handle, no source handle - the compiler now
 // derives "what happens after the loop" from a CHILD's own outgoing edge to
@@ -15,6 +21,7 @@
 
 import React from 'react';
 import { Handle, NodeResizer, Position } from 'reactflow';
+import { FieldPicker } from './FieldPicker';
 
 const ACCENT = '#F0A93E'; // matches 'control' category's accent everywhere else
 
@@ -23,11 +30,12 @@ export interface LoopContainerData {
   hasError: boolean;
   errorMessage?: string;
   selected: boolean;
+  samplePayload?: Record<string, unknown>;
+  onConfigChange: (patch: Record<string, unknown>) => void;
+  onDelete: () => void;
 }
 
 export function LoopContainerNode({ data }: { data: LoopContainerData }) {
-  const arrayPath = String(data.config.arrayPath ?? '(no array field set)');
-
   return (
     <>
       <NodeResizer
@@ -49,7 +57,24 @@ export function LoopContainerNode({ data }: { data: LoopContainerData }) {
           <span className="material-symbols-outlined text-[14px]">repeat</span>
           Loop: repeatForEach
         </div>
-        <div className="px-4 pt-6 font-code-sm text-code-sm text-on-surface-variant">{arrayPath}</div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onDelete();
+          }}
+          className="nodrag absolute -top-3 right-4 rounded border border-outline-variant bg-background px-1.5 font-label-caps text-label-caps text-error hover:bg-error-container/20"
+          title="Delete this loop (children are kept, not deleted, but become unattached)"
+        >
+          Delete
+        </button>
+        <div className="nodrag nopan px-3 pt-6" onClick={(e) => e.stopPropagation()}>
+          <FieldPicker
+            samplePayload={data.samplePayload ? { payload: data.samplePayload } : undefined}
+            value={String(data.config.arrayPath ?? '')}
+            onChange={(v) => data.onConfigChange({ arrayPath: v })}
+            placeholder="e.g. payload.lineItems"
+          />
+        </div>
       </div>
 
       {data.hasError && (
