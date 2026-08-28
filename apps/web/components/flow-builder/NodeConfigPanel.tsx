@@ -43,6 +43,7 @@ export function NodeConfigPanel({
   samplePayload,
   actionSampleResponses,
   onCaptureResponse,
+  insideLoop,
 }: {
   nodeId: string;
   nodeType: string;
@@ -52,22 +53,31 @@ export function NodeConfigPanel({
   samplePayload?: Record<string, unknown>;
   actionSampleResponses: Record<string, unknown>;
   onCaptureResponse: (nodeId: string, body: unknown) => void;
+  // Inside a repeatForEach's Map state, $ becomes the current array item
+  // itself - there's no "payload" key, and (a separate, deeper gap - see
+  // the compiler's Map state, which has no ItemSelector carrying anything
+  // forward) no "actionResults" key either. Wrapping/merging those in here
+  // regardless would offer paths that look selectable but silently resolve
+  // to nothing at runtime - the exact bug this whole fix is about.
+  insideLoop?: boolean;
 }) {
   const def = getNodeType(nodeType);
   const accent = CATEGORY_ACCENT[def.category];
   const [sending, setSending] = useState(false);
   const [testResult, setTestResult] = useState<TestResponse | null>(null);
 
-  // Merged into every field picker/key-value mapper on this panel, not just
-  // httpCall's own fields - a check node's fieldPath picker needs to browse
-  // into an EARLIER httpCall's captured response too, not just the sample
-  // payload. Wrapped as {body: ...} to match the real runtime shape
-  // ($.actionResults.<nodeId> = the executor's full return value, whose
-  // most commonly-referenced field is .body).
-  const pickerSource = {
-    payload: samplePayload ?? {},
-    actionResults: Object.fromEntries(Object.entries(actionSampleResponses).map(([id, body]) => [id, { body }])),
-  };
+  const pickerSource = insideLoop
+    ? (samplePayload ?? {})
+    : {
+        // Merged into every field picker/key-value mapper on this panel,
+        // not just httpCall's own fields - a check node's fieldPath picker
+        // needs to browse into an EARLIER httpCall's captured response too,
+        // not just the sample payload. Wrapped as {body: ...} to match the
+        // real runtime shape ($.actionResults.<nodeId> = the executor's
+        // full return value, whose most commonly-referenced field is .body).
+        payload: samplePayload ?? {},
+        actionResults: Object.fromEntries(Object.entries(actionSampleResponses).map(([id, body]) => [id, { body }])),
+      };
 
   async function handleSendTest() {
     setSending(true);

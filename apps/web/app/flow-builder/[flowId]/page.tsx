@@ -77,6 +77,33 @@ function CanvasInner() {
   const violationsByNode = new Map(violations.map((v) => [v.nodeId, v.message]));
   const selectedNode = nodes.find((n) => n.id === selectedId) as Node<FlowNodeCardData> | undefined;
 
+  /** Plain dot-path traversal against a JS object - used only to compute the
+   * per-item sample below, nothing to do with the runtime path-resolution
+   * that already exists server-side in flowExecutor. */
+  function getPath(obj: unknown, path: string): unknown {
+    return path
+      .split('.')
+      .filter(Boolean)
+      .reduce<unknown>((acc, key) => (acc == null ? undefined : (acc as Record<string, unknown>)[key]), obj);
+  }
+
+  /** The actual fix for the loop confusion: inside a repeatForEach, Step
+   * Functions' Map state makes $ the CURRENT ARRAY ITEM itself, not the
+   * original payload - there's no "payload" key inside a loop at all. The
+   * field picker was always showing the top-level payload tree regardless,
+   * suggesting paths like "payload.lineItems.0.sku" that silently resolve to
+   * nothing once actually running inside the loop. If the selected node's
+   * parent is a repeatForEach, this instead shows one real sample item from
+   * that array - matching what the node will genuinely see at runtime. */
+  function getEffectiveSamplePayload(node: Node<FlowNodeCardData> | undefined): Record<string, unknown> | undefined {
+    if (!node?.parentNode || !samplePayload) return samplePayload;
+    const container = nodes.find((n) => n.id === node.parentNode);
+    if (container?.type !== 'loopContainer') return samplePayload;
+    const arrayPath = String(container.data.config?.arrayPath ?? '').replace(/^payload\./, '');
+    const array = getPath(samplePayload, arrayPath);
+    return Array.isArray(array) && array.length > 0 ? (array[0] as Record<string, unknown>) : undefined;
+  }
+
   const decorate = useCallback(
     (n: Node<FlowNodeCardData | LoopContainerData>): Node<FlowNodeCardData | LoopContainerData> => ({
       ...n,
@@ -91,11 +118,23 @@ function CanvasInner() {
         selected: n.id === selectedId,
         hasError: violationsByNode.has(n.id),
         errorMessage: violationsByNode.get(n.id),
+        // Kept live here, not baked in once at construction time - a loop
+        // container's embedded field picker needs to reflect the CURRENT
+        // sample payload, including edits made after this node was created,
+        // not a frozen snapshot from whenever it was first added.
+        samplePayload,
+        onConfigChange: (patch: Record<string, unknown>) => updateNodeConfig(n.id, patch),
+        onDelete: () => deleteNode(n.id),
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedId, violations],
+    [selectedId, violations, samplePayload],
   );
+
+  useEffect(() => {
+    setNodes((nds) => nds.map(decorate));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [samplePayload]);
 
   useEffect(() => {
     flowBuilderApi
@@ -188,6 +227,20 @@ function CanvasInner() {
     setEdges((eds) => addEdge({ ...connection, type: 'deletable', data: { onDelete: deleteEdge }, style }, eds));
   }
 
+  /** Whichever existing child of a container doesn't already point at
+   * another sibling - i.e. the current end of that container's chain. Used
+   * to auto-wire a newly added/moved node onto the end, instead of leaving
+   * it disconnected and requiring a manual edge every time - dragging a node
+   * INTO the visual container should be enough on its own. */
+  function findChainTailInContainer(containerId: string, excludeId?: string): string | undefined {
+    const childIds = new Set(nodes.filter((n) => n.parentNode === containerId && n.id !== excludeId).map((n) => n.id));
+    if (childIds.size === 0) return undefined;
+    const pointsAtSibling = new Set(
+      edges.filter((e) => childIds.has(e.source) && childIds.has(e.target)).map((e) => e.source),
+    );
+    return [...childIds].find((id) => !pointsAtSibling.has(id));
+  }
+
   function onDrop(e: React.DragEvent) {
     e.preventDefault();
     const nodeType = e.dataTransfer.getData('application/flow-node-type');
@@ -228,6 +281,16 @@ function CanvasInner() {
         data: { nodeType, config: {}, hasError: false, selected: false },
       }),
     ]);
+
+    if (container) {
+      const tailId = findChainTailInContainer(container.id);
+      if (tailId) {
+        setEdges((eds) => [
+          ...eds,
+          { id: `${tailId}-${id}`, source: tailId, target: id, type: 'deletable', data: { onDelete: deleteEdge } },
+        ]);
+      }
+    }
   }
 
   // Dragging an EXISTING node in or out of a container - onDrop above only
@@ -255,6 +318,28 @@ function CanvasInner() {
           : n,
       ),
     );
+
+    // Same auto-wire as onDrop - moving an EXISTING node into a container
+    // shouldn't require a separate manual reconnection any more than a
+    // brand-new one does. Only wires in if nothing already connects this
+    // node from within that container (e.g. it wasn't just briefly dragged
+    // out and back into the same one).
+    if (newContainer) {
+      const tailId = findChainTailInContainer(newContainer.id, draggedNode.id);
+      const alreadyWired = edges.some((e) => e.target === draggedNode.id && e.source === tailId);
+      if (tailId && !alreadyWired) {
+        setEdges((eds) => [
+          ...eds,
+          {
+            id: `${tailId}-${draggedNode.id}`,
+            source: tailId,
+            target: draggedNode.id,
+            type: 'deletable',
+            data: { onDelete: deleteEdge },
+          },
+        ]);
+      }
+    }
   };
 
   function addStartNode() {
@@ -454,29 +539,22 @@ function CanvasInner() {
 
       {selectedNode && selectedNode.type !== 'loopContainer' && (
         <SidePanel title={getNodeType(selectedNode.data.nodeType).label} onClose={() => setSelectedId(null)}>
+          {selectedNode.parentNode && (
+            <div className="mb-4 rounded bg-primary-container/20 px-3 py-2 font-body-sm text-body-sm text-primary">
+              Inside a loop - fields below are relative to ONE item of the array being looped over, not the
+              full payload (e.g. "sku", not "payload.lineItems.0.sku").
+            </div>
+          )}
           <NodeConfigPanel
             nodeId={selectedNode.id}
             nodeType={selectedNode.data.nodeType}
             config={selectedNode.data.config}
             onConfigChange={(patch) => updateNodeConfig(selectedNode.id, patch)}
             onDelete={() => deleteNode(selectedNode.id)}
-            samplePayload={samplePayload}
+            samplePayload={getEffectiveSamplePayload(selectedNode)}
             actionSampleResponses={actionSampleResponses}
             onCaptureResponse={handleCaptureActionResponse}
-          />
-        </SidePanel>
-      )}
-      {selectedNode && selectedNode.type === 'loopContainer' && (
-        <SidePanel title="Repeat For Each" onClose={() => setSelectedId(null)}>
-          <NodeConfigPanel
-            nodeId={selectedNode.id}
-            nodeType="repeatForEach"
-            config={selectedNode.data.config}
-            onConfigChange={(patch) => updateNodeConfig(selectedNode.id, patch)}
-            onDelete={() => deleteNode(selectedNode.id)}
-            samplePayload={samplePayload}
-            actionSampleResponses={actionSampleResponses}
-            onCaptureResponse={handleCaptureActionResponse}
+            insideLoop={Boolean(selectedNode.parentNode)}
           />
         </SidePanel>
       )}
