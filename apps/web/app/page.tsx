@@ -1,12 +1,14 @@
 // apps/web/app/page.tsx
 //
-// Root redirects to the Flow Builder dashboard - the new canvas/compiler
-// system, which has no dependency on Aurora/Cognito/the SSR compute role at
-// all (unlike /clients, which needs those and can crash if they're not
-// configured). This is the reliable default entry point.
+// Root redirects to Overview - the actual dashboard/landing summary, not
+// Workflows (which is more of a flows-list within one section). Previously
+// pointed at /flow-builder specifically because /clients could crash if
+// Aurora/Cognito/the SSR compute role weren't configured - /overview has
+// the same reliability property (no dependency on any of that), so this
+// change doesn't reintroduce that risk.
 
 import { redirect } from 'next/navigation';
 
 export default function RootPage() {
-  redirect('/flow-builder');
+  redirect('/overview');
 }
