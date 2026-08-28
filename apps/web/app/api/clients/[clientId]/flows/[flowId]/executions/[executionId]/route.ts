@@ -5,12 +5,11 @@ import { callFlowEngine } from '../../../../../../../../lib/internalApiClient';
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { clientId: string; flowId: string; executionId: string } },
+  { params }: { params: Promise<{ clientId: string; flowId: string; executionId: string }> },
 ) {
-  const check = await requireClientAccess(params.clientId);
+  const { clientId, flowId, executionId } = await params;
+  const check = await requireClientAccess(clientId);
   if (!check.ok) return check.response;
-  const detail = await callFlowEngine(
-    `/tenants/${params.clientId}/flows/${params.flowId}/executions/${params.executionId}`,
-  );
+  const detail = await callFlowEngine(`/tenants/${clientId}/flows/${flowId}/executions/${executionId}`);
   return NextResponse.json(detail);
 }

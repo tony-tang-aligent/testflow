@@ -5,12 +5,13 @@ import { callFlowEngine } from '../../../../../../../lib/internalApiClient';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { clientId: string; flowId: string } },
+  { params }: { params: Promise<{ clientId: string; flowId: string }> },
 ) {
-  const check = await requireClientAccess(params.clientId);
+  const { clientId, flowId } = await params;
+  const check = await requireClientAccess(clientId);
   if (!check.ok) return check.response;
   const body = await req.text();
-  const result = await callFlowEngine(`/tenants/${params.clientId}/flows/${params.flowId}/test`, {
+  const result = await callFlowEngine(`/tenants/${clientId}/flows/${flowId}/test`, {
     method: 'POST',
     body,
   });
