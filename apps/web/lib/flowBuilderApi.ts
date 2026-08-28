@@ -19,6 +19,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     err.violations = body.violations;
     throw err;
   }
+  // 204 (and any other genuinely empty response) has nothing to parse -
+  // res.json() would throw on an empty body. Only the delete endpoint hits
+  // this today, but this is a correctness fix to the shared helper, not a
+  // one-off special case for it.
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
@@ -33,6 +38,11 @@ export const flowBuilderApi = {
   getDraft: (flowId: string) => request<FlowGraph>(`/flow-drafts/${flowId}`),
   saveDraft: (flowId: string, graph: FlowGraph) =>
     request<FlowGraph>(`/flow-drafts/${flowId}`, { method: 'PUT', body: JSON.stringify(graph) }),
+  // Refused with a 409 (and a clear message, surfaced via request()'s
+  // existing error path) if this flow is currently published for its
+  // document type - deleting the draft out from under a live state machine
+  // would orphan it, not something to do silently.
+  deleteDraft: (flowId: string) => request<void>(`/flow-drafts/${flowId}`, { method: 'DELETE' }),
   publish: (flowId: string, graph: FlowGraph) =>
     request<{ stateMachineArn: string; message: string }>(`/flow-drafts/${flowId}/publish`, {
       method: 'POST',
