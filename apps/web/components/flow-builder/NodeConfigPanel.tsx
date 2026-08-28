@@ -35,16 +35,17 @@ interface TestResponse {
 }
 
 export function NodeConfigPanel({
-  nodeId,
-  nodeType,
-  config,
-  onConfigChange,
-  onDelete,
-  samplePayload,
-  actionSampleResponses,
-  onCaptureResponse,
-  insideLoop,
-}: {
+                                  nodeId,
+                                  nodeType,
+                                  config,
+                                  onConfigChange,
+                                  onDelete,
+                                  samplePayload,
+                                  actionSampleResponses,
+                                  onCaptureResponse,
+                                  insideLoop,
+                                  loopArrayPath,
+                                }: {
   nodeId: string;
   nodeType: string;
   config: Record<string, unknown>;
@@ -72,8 +73,8 @@ export function NodeConfigPanel({
   const [testResult, setTestResult] = useState<TestResponse | null>(null);
 
   const pickerSource = insideLoop
-    ? (samplePayload ?? {})
-    : {
+      ? (samplePayload ?? {})
+      : {
         // Merged into every field picker/key-value mapper on this panel,
         // not just httpCall's own fields - a check node's fieldPath picker
         // needs to browse into an EARLIER httpCall's captured response too,
@@ -109,173 +110,173 @@ export function NodeConfigPanel({
   }
 
   return (
-    <div>
-      <div className="mb-4 flex items-start justify-between">
-        <div>
+      <div>
+        <div className="mb-4 flex items-start justify-between">
+          <div>
           <span
-            className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-            style={{ background: `${accent}1A`, color: accent }}
+              className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+              style={{ background: `${accent}1A`, color: accent }}
           >
             {def.category}
           </span>
-          <p className="mt-1.5 font-body-sm text-body-sm text-on-surface-variant">{def.description}</p>
-        </div>
-        <button onClick={onDelete} className="shrink-0 font-body-sm text-body-sm text-error hover:underline">
-          Delete node
-        </button>
-      </div>
-
-      {def.canHaveOutput && def.category === 'action' && (
-        <div className="mb-4 rounded bg-primary-container/20 px-3 py-2 font-body-sm text-body-sm text-primary">
-          {actionSampleResponses[nodeId] !== undefined ? (
-            <>A response has been captured - other nodes' field pickers can now browse into it directly.</>
-          ) : (
-            <>
-              Click "Send test request" below at least once - until then, this response's shape is unknown and
-              other nodes can't browse into it (only type a path by hand).
-            </>
-          )}
-        </div>
-      )}
-
-      <div className="space-y-4">
-        {def.configFields.length === 0 && (
-          <p className="font-body-sm text-body-sm text-on-surface-variant">This node has no configuration.</p>
-        )}
-        {def.configFields.map((field) => (
-          <div key={field.key}>
-            <label className="mb-1 block font-label-caps text-label-caps uppercase tracking-wide text-on-surface-variant">
-              {field.label}
-            </label>
-            {field.kind === 'fieldPicker' ? (
-              <FieldPicker
-                samplePayload={pickerSource}
-                value={String(config[field.key] ?? '')}
-                onChange={(v) => onConfigChange({ [field.key]: v })}
-                placeholder={field.placeholder}
-              />
-            ) : field.kind === 'keyValueMapper' ? (
-              <KeyValueMapper
-                rows={(config[field.key] as KeyValueRow[]) ?? []}
-                onChange={(rows) => onConfigChange({ [field.key]: rows })}
-                pickerSource={pickerSource}
-              />
-            ) : field.kind === 'textarea' ? (
-              <textarea
-                className="w-full rounded border border-outline-variant bg-background px-2.5 py-2 font-code-base text-code-base text-on-surface focus:border-primary focus:outline-none"
-                rows={3}
-                placeholder={field.placeholder}
-                value={String(config[field.key] ?? '')}
-                onChange={(e) => onConfigChange({ [field.key]: e.target.value })}
-              />
-            ) : field.kind === 'select' ? (
-              <select
-                className="w-full rounded border border-outline-variant bg-background px-2.5 py-2 font-body-base text-body-base text-on-surface focus:border-primary focus:outline-none"
-                value={String(config[field.key] ?? field.options?.[0] ?? '')}
-                onChange={(e) => onConfigChange({ [field.key]: e.target.value })}
-              >
-                {field.options?.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                className="w-full rounded border border-outline-variant bg-background px-2.5 py-2 font-code-base text-code-base text-on-surface focus:border-primary focus:outline-none"
-                placeholder={field.placeholder}
-                value={String(config[field.key] ?? '')}
-                onChange={(e) => onConfigChange({ [field.key]: e.target.value })}
-              />
-            )}
+            <p className="mt-1.5 font-body-sm text-body-sm text-on-surface-variant">{def.description}</p>
           </div>
-        ))}
+          <button onClick={onDelete} className="shrink-0 font-body-sm text-body-sm text-error hover:underline">
+            Delete node
+          </button>
+        </div>
 
-        {!samplePayload && def.configFields.some((f) => f.kind === 'fieldPicker' || f.kind === 'keyValueMapper') && (
-          <p className="rounded bg-tertiary-container/20 px-3 py-2 font-body-sm text-body-sm text-tertiary">
-            {insideLoop
-              ? loopArrayPath
-                ? `Couldn't resolve "${loopArrayPath}" as an array with at least one item in your sample payload - check the loop container's "Array field" for a typo, or that your sample payload actually has data there.`
-                : `This loop's "Array field" isn't set yet - open the loop container and pick which array to iterate over first.`
-              : 'Set a sample payload (top bar) to browse fields instead of typing paths by hand.'}
-          </p>
+        {def.canHaveOutput && def.category === 'action' && (
+            <div className="mb-4 rounded bg-primary-container/20 px-3 py-2 font-body-sm text-body-sm text-primary">
+              {actionSampleResponses[nodeId] !== undefined ? (
+                  <>A response has been captured - other nodes' field pickers can now browse into it directly.</>
+              ) : (
+                  <>
+                    Click "Send test request" below at least once - until then, this response's shape is unknown and
+                    other nodes can't browse into it (only type a path by hand).
+                  </>
+              )}
+            </div>
         )}
 
-        {nodeType === 'httpCall' && (
-          <div className="border-t border-outline-variant pt-4">
-            <button
-              onClick={handleSendTest}
-              disabled={sending || !config.url}
-              className="w-full rounded bg-primary px-3 py-2 font-body-sm text-body-sm font-medium text-on-primary disabled:opacity-40"
-            >
-              {sending ? 'Sending…' : 'Send test request'}
-            </button>
+        <div className="space-y-4">
+          {def.configFields.length === 0 && (
+              <p className="font-body-sm text-body-sm text-on-surface-variant">This node has no configuration.</p>
+          )}
+          {def.configFields.map((field) => (
+              <div key={field.key}>
+                <label className="mb-1 block font-label-caps text-label-caps uppercase tracking-wide text-on-surface-variant">
+                  {field.label}
+                </label>
+                {field.kind === 'fieldPicker' ? (
+                    <FieldPicker
+                        samplePayload={pickerSource}
+                        value={String(config[field.key] ?? '')}
+                        onChange={(v) => onConfigChange({ [field.key]: v })}
+                        placeholder={field.placeholder}
+                    />
+                ) : field.kind === 'keyValueMapper' ? (
+                    <KeyValueMapper
+                        rows={(config[field.key] as KeyValueRow[]) ?? []}
+                        onChange={(rows) => onConfigChange({ [field.key]: rows })}
+                        pickerSource={pickerSource}
+                    />
+                ) : field.kind === 'textarea' ? (
+                    <textarea
+                        className="w-full rounded border border-outline-variant bg-background px-2.5 py-2 font-code-base text-code-base text-on-surface focus:border-primary focus:outline-none"
+                        rows={3}
+                        placeholder={field.placeholder}
+                        value={String(config[field.key] ?? '')}
+                        onChange={(e) => onConfigChange({ [field.key]: e.target.value })}
+                    />
+                ) : field.kind === 'select' ? (
+                    <select
+                        className="w-full rounded border border-outline-variant bg-background px-2.5 py-2 font-body-base text-body-base text-on-surface focus:border-primary focus:outline-none"
+                        value={String(config[field.key] ?? field.options?.[0] ?? '')}
+                        onChange={(e) => onConfigChange({ [field.key]: e.target.value })}
+                    >
+                      {field.options?.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                      ))}
+                    </select>
+                ) : (
+                    <input
+                        className="w-full rounded border border-outline-variant bg-background px-2.5 py-2 font-code-base text-code-base text-on-surface focus:border-primary focus:outline-none"
+                        placeholder={field.placeholder}
+                        value={String(config[field.key] ?? '')}
+                        onChange={(e) => onConfigChange({ [field.key]: e.target.value })}
+                    />
+                )}
+              </div>
+          ))}
 
-            {testResult && (
-              <div className="mt-3 space-y-2 rounded border border-outline-variant bg-surface-container-low p-3">
-                {testResult.error ? (
-                  <p className="font-body-sm text-body-sm text-error">{testResult.error}</p>
-                ) : testResult.response ? (
-                  <>
-                    <div className="flex items-center gap-2">
+          {!samplePayload && def.configFields.some((f) => f.kind === 'fieldPicker' || f.kind === 'keyValueMapper') && (
+              <p className="rounded bg-tertiary-container/20 px-3 py-2 font-body-sm text-body-sm text-tertiary">
+                {insideLoop
+                    ? loopArrayPath
+                        ? `Couldn't resolve "${loopArrayPath}" as an array with at least one item in your sample payload - check the loop container's "Array field" for a typo, or that your sample payload actually has data there.`
+                        : `This loop's "Array field" isn't set yet - open the loop container and pick which array to iterate over first.`
+                    : 'Set a sample payload (top bar) to browse fields instead of typing paths by hand.'}
+              </p>
+          )}
+
+          {nodeType === 'httpCall' && (
+              <div className="border-t border-outline-variant pt-4">
+                <button
+                    onClick={handleSendTest}
+                    disabled={sending || !config.url}
+                    className="w-full rounded bg-primary px-3 py-2 font-body-sm text-body-sm font-medium text-on-primary disabled:opacity-40"
+                >
+                  {sending ? 'Sending…' : 'Send test request'}
+                </button>
+
+                {testResult && (
+                    <div className="mt-3 space-y-2 rounded border border-outline-variant bg-surface-container-low p-3">
+                      {testResult.error ? (
+                          <p className="font-body-sm text-body-sm text-error">{testResult.error}</p>
+                      ) : testResult.response ? (
+                          <>
+                            <div className="flex items-center gap-2">
                       <span
-                        className={`rounded px-1.5 py-0.5 font-code-sm text-code-sm ${
-                          testResult.response.status < 300
-                            ? 'bg-secondary-container/20 text-secondary'
-                            : testResult.response.status < 400
-                              ? 'bg-tertiary-container/20 text-tertiary'
-                              : 'bg-error-container/20 text-error'
-                        }`}
+                          className={`rounded px-1.5 py-0.5 font-code-sm text-code-sm ${
+                              testResult.response.status < 300
+                                  ? 'bg-secondary-container/20 text-secondary'
+                                  : testResult.response.status < 400
+                                      ? 'bg-tertiary-container/20 text-tertiary'
+                                      : 'bg-error-container/20 text-error'
+                          }`}
                       >
                         {testResult.response.status} {testResult.response.statusText}
                       </span>
-                      <span className="font-body-sm text-body-sm text-on-surface-variant">{testResult.response.timeMs}ms</span>
-                      <span className="font-body-sm text-body-sm text-secondary">captured for other nodes to reference</span>
-                    </div>
-                    <details className="font-body-sm text-body-sm">
-                      <summary className="cursor-pointer text-on-surface-variant hover:text-on-surface">
-                        Request sent ({testResult.request.method})
-                      </summary>
-                      <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded bg-background p-2 font-code-sm text-code-sm text-on-surface-variant">
+                              <span className="font-body-sm text-body-sm text-on-surface-variant">{testResult.response.timeMs}ms</span>
+                              <span className="font-body-sm text-body-sm text-secondary">captured for other nodes to reference</span>
+                            </div>
+                            <details className="font-body-sm text-body-sm">
+                              <summary className="cursor-pointer text-on-surface-variant hover:text-on-surface">
+                                Request sent ({testResult.request.method})
+                              </summary>
+                              <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded bg-background p-2 font-code-sm text-code-sm text-on-surface-variant">
                         {testResult.request.url}
-                        {'\n'}
-                        {JSON.stringify(testResult.request.headers, null, 2)}
-                        {testResult.request.body ? `\n\n${testResult.request.body}` : ''}
+                                {'\n'}
+                                {JSON.stringify(testResult.request.headers, null, 2)}
+                                {testResult.request.body ? `\n\n${testResult.request.body}` : ''}
                       </pre>
-                    </details>
-                    <details className="font-body-sm text-body-sm" open>
-                      <summary className="cursor-pointer text-on-surface-variant hover:text-on-surface">
-                        Response headers
-                      </summary>
-                      <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded bg-background p-2 font-code-sm text-code-sm text-on-surface-variant">
+                            </details>
+                            <details className="font-body-sm text-body-sm" open>
+                              <summary className="cursor-pointer text-on-surface-variant hover:text-on-surface">
+                                Response headers
+                              </summary>
+                              <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded bg-background p-2 font-code-sm text-code-sm text-on-surface-variant">
                         {JSON.stringify(testResult.response.headers, null, 2)}
                       </pre>
-                    </details>
-                    <details className="font-body-sm text-body-sm" open>
-                      <summary className="flex cursor-pointer items-center justify-between text-on-surface-variant hover:text-on-surface">
-                        <span>Response body</span>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            navigator.clipboard.writeText(testResult.response!.body);
-                          }}
-                          className="flex items-center gap-1 font-body-sm text-body-sm text-primary hover:underline"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">content_copy</span>
-                          Copy
-                        </button>
-                      </summary>
-                      <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-background p-2 font-code-sm text-code-sm text-on-surface-variant">
+                            </details>
+                            <details className="font-body-sm text-body-sm" open>
+                              <summary className="flex cursor-pointer items-center justify-between text-on-surface-variant hover:text-on-surface">
+                                <span>Response body</span>
+                                <button
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      navigator.clipboard.writeText(testResult.response!.body);
+                                    }}
+                                    className="flex items-center gap-1 font-body-sm text-body-sm text-primary hover:underline"
+                                >
+                                  <span className="material-symbols-outlined text-[14px]">content_copy</span>
+                                  Copy
+                                </button>
+                              </summary>
+                              <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-background p-2 font-code-sm text-code-sm text-on-surface-variant">
                         {testResult.response.body || '(empty)'}
                       </pre>
-                    </details>
-                  </>
-                ) : null}
+                            </details>
+                          </>
+                      ) : null}
+                    </div>
+                )}
               </div>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
   );
 }
