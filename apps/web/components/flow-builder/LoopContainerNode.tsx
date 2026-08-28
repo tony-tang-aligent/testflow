@@ -36,6 +36,28 @@ export interface LoopContainerData {
 }
 
 export function LoopContainerNode({ data }: { data: LoopContainerData }) {
+  // Live feedback right where the actual mistake happens - the picker lets
+  // you click ANY node in the tree, leaf or group, with nothing stopping
+  // you from picking a field INSIDE an item (e.g. "lineItems.sku") instead
+  // of the array itself ("lineItems"). Without this, that mistake was
+  // silent here and only surfaced much later, downstream, when a child
+  // node's config panel came up empty with no clue why.
+  const arrayPathValue = String(data.config.arrayPath ?? '');
+  let resolutionHint: string | null = null;
+  if (arrayPathValue && data.samplePayload) {
+    const stripped = arrayPathValue.replace(/^payload\./, '');
+    const resolved = stripped
+      .split('.')
+      .filter(Boolean)
+      .reduce<unknown>((acc, key) => (acc == null ? undefined : (acc as Record<string, unknown>)[key]), data.samplePayload);
+    if (!Array.isArray(resolved)) {
+      resolutionHint =
+        resolved === undefined
+          ? `"${arrayPathValue}" doesn't exist in the sample payload.`
+          : `"${arrayPathValue}" resolves to a single value, not an array - pick the array itself, not a field inside its items.`;
+    }
+  }
+
   return (
     <>
       <NodeResizer
@@ -76,10 +98,14 @@ export function LoopContainerNode({ data }: { data: LoopContainerData }) {
         <div className="nodrag nopan px-3 pt-6" onClick={(e) => e.stopPropagation()}>
           <FieldPicker
             samplePayload={data.samplePayload ? { payload: data.samplePayload } : undefined}
-            value={String(data.config.arrayPath ?? '')}
+            value={arrayPathValue}
             onChange={(v) => data.onConfigChange({ arrayPath: v })}
             placeholder="e.g. payload.lineItems"
+            restrictTo="array"
           />
+          {resolutionHint && (
+            <p className="nodrag mt-1 font-body-sm text-body-sm text-tertiary">{resolutionHint}</p>
+          )}
         </div>
       </div>
 

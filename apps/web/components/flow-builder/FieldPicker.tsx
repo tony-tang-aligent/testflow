@@ -12,30 +12,68 @@ function TreeBranch({
   node,
   onPick,
   depth = 0,
+  restrictTo,
 }: {
   node: FieldNode;
   onPick: (path: string) => void;
   depth?: number;
+  // When set, only nodes of this kind can actually be picked - everything
+  // else still expands (so you can browse THROUGH an object to find an
+  // array nested inside it), but clicking it doesn't produce a value.
+  // Without this, arrays were never selectable at all: they have children
+  // (their item shape), so the old logic always expanded them on click and
+  // there was no way to pick the array node itself - only leaves ever
+  // produced a path, which is exactly the bug this fixes.
+  restrictTo?: 'array';
 }) {
   const [open, setOpen] = useState(depth < 1);
   const hasChildren = !!node.children?.length;
+  const isPickable = !restrictTo || node.kind === restrictTo;
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => (hasChildren ? setOpen((o) => !o) : onPick(node.path))}
-        className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left font-body-sm text-body-sm hover:bg-surface-container-highest"
+      <div
+        className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 hover:bg-surface-container-highest"
         style={{ paddingLeft: 6 + depth * 12 }}
       >
-        {hasChildren && <span className="text-on-surface-variant">{open ? '▾' : '▸'}</span>}
-        <span className={hasChildren ? 'font-medium text-on-surface' : 'text-on-surface-variant'}>{node.label}</span>
-        {!hasChildren && <span className="ml-auto truncate font-code-sm text-code-sm text-on-surface-variant">{node.preview}</span>}
-      </button>
+        {hasChildren && (
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="text-on-surface-variant"
+            aria-label={open ? 'Collapse' : 'Expand'}
+          >
+            {open ? '▾' : '▸'}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => isPickable && onPick(node.path)}
+          disabled={!isPickable}
+          className={`flex flex-1 items-center gap-1.5 text-left font-body-sm text-body-sm ${
+            isPickable ? '' : 'cursor-default opacity-40'
+          }`}
+          title={
+            !isPickable && restrictTo
+              ? `Not a${restrictTo === 'array' ? 'n array' : ''} - only ${restrictTo}s can be picked here`
+              : undefined
+          }
+        >
+          <span className={hasChildren ? 'font-medium text-on-surface' : 'text-on-surface-variant'}>{node.label}</span>
+          {!hasChildren && (
+            <span className="ml-auto truncate font-code-sm text-code-sm text-on-surface-variant">{node.preview}</span>
+          )}
+          {restrictTo && node.kind === restrictTo && (
+            <span className="ml-auto rounded bg-primary-container/20 px-1 font-code-sm text-[10px] text-primary">
+              select
+            </span>
+          )}
+        </button>
+      </div>
       {hasChildren && open && (
         <div>
           {node.children!.map((child) => (
-            <TreeBranch key={child.path} node={child} onPick={onPick} depth={depth + 1} />
+            <TreeBranch key={child.path} node={child} onPick={onPick} depth={depth + 1} restrictTo={restrictTo} />
           ))}
         </div>
       )}
@@ -54,12 +92,16 @@ export function FieldPicker({
   // need (the raw path itself, since those are read directly, never
   // interpolated).
   insertAsPlaceholder,
+  // Passed straight through to the tree - see TreeBranch's own comment for
+  // why this needed a real fix, not just a warning after the fact.
+  restrictTo,
 }: {
   samplePayload?: Record<string, unknown>;
   value: string;
   onChange: (path: string) => void;
   placeholder?: string;
   insertAsPlaceholder?: boolean;
+  restrictTo?: 'array';
 }) {
   const [open, setOpen] = useState(false);
   const tree = samplePayload ? buildFieldTree(samplePayload) : null;
@@ -87,6 +129,7 @@ export function FieldPicker({
         <div className="absolute z-20 mt-1 max-h-64 w-72 overflow-y-auto rounded-lg border border-outline-variant bg-surface-container-high p-1 shadow-lg">
           <TreeBranch
             node={tree}
+            restrictTo={restrictTo}
             onPick={(path) => {
               if (path === '$') {
                 setOpen(false);
