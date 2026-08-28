@@ -555,6 +555,11 @@ function CanvasInner() {
             actionSampleResponses={actionSampleResponses}
             onCaptureResponse={handleCaptureActionResponse}
             insideLoop={Boolean(selectedNode.parentNode)}
+            loopArrayPath={
+              selectedNode.parentNode
+                ? String(nodes.find((n) => n.id === selectedNode.parentNode)?.data.config?.arrayPath ?? '')
+                : undefined
+            }
           />
         </SidePanel>
       )}

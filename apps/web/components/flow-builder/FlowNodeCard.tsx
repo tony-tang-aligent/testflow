@@ -73,7 +73,14 @@ export function FlowNodeCard({ data }: { data: FlowNodeCardData }) {
 
   return (
     <div
-      className={`w-64 overflow-hidden rounded-lg border border-outline-variant bg-surface shadow-sm transition-all hover:border-primary ${
+      // No overflow-hidden - it was clipping the connection handles' actual
+      // clickable hit-area, since Handle renders right at this div's edge
+      // and can sit fractionally outside its bounding box. That's a real
+      // interaction bug (can't grab the handle to draw a connection), not
+      // just a cosmetic one - worth the very minor risk of a corner
+      // occasionally not looking perfectly rounded in exchange for
+      // connections actually working.
+      className={`w-64 rounded-lg border border-outline-variant bg-surface shadow-sm transition-all hover:border-primary ${
         data.hasError ? 'border-error' : ''
       } ${data.selected ? 'ring-2 ring-offset-1 ring-offset-background' : ''}`}
       style={{
@@ -92,7 +99,7 @@ export function FlowNodeCard({ data }: { data: FlowNodeCardData }) {
         />
       )}
 
-      <div className="flex items-center gap-2 border-b border-outline-variant bg-surface-container px-3 py-2">
+      <div className="flex items-center gap-2 rounded-t-lg border-b border-outline-variant bg-surface-container px-3 py-2">
         <span className="material-symbols-outlined text-[16px]" style={{ color: accent }}>
           {def.icon}
         </span>

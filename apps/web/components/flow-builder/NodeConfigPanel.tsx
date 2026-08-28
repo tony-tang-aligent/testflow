@@ -60,6 +60,11 @@ export function NodeConfigPanel({
   // regardless would offer paths that look selectable but silently resolve
   // to nothing at runtime - the exact bug this whole fix is about.
   insideLoop?: boolean;
+  // The RAW attempted array path, purely for the diagnostic message above -
+  // lets someone see EXACTLY what didn't resolve instead of a generic
+  // "no payload" that looks identical whether nothing was set or something
+  // was set wrong.
+  loopArrayPath?: string;
 }) {
   const def = getNodeType(nodeType);
   const accent = CATEGORY_ACCENT[def.category];
@@ -188,7 +193,11 @@ export function NodeConfigPanel({
 
         {!samplePayload && def.configFields.some((f) => f.kind === 'fieldPicker' || f.kind === 'keyValueMapper') && (
           <p className="rounded bg-tertiary-container/20 px-3 py-2 font-body-sm text-body-sm text-tertiary">
-            Set a sample payload (top bar) to browse fields instead of typing paths by hand.
+            {insideLoop
+              ? loopArrayPath
+                ? `Couldn't resolve "${loopArrayPath}" as an array with at least one item in your sample payload - check the loop container's "Array field" for a typo, or that your sample payload actually has data there.`
+                : `This loop's "Array field" isn't set yet - open the loop container and pick which array to iterate over first.`
+              : 'Set a sample payload (top bar) to browse fields instead of typing paths by hand.'}
           </p>
         )}
 
