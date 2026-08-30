@@ -57,15 +57,21 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
   callbacks: {
-    jwt({ token, account }) {
+    jwt({ token, account, profile }) {
+      // TEMP DEBUG - remove once the missing-email issue is found
+      console.log('[auth jwt] account:', account, 'profile:', profile, 'token before:', token);
       if (account?.provider === 'cognito') {
         token.cognitoSub = account.providerAccountId;
       }
+      console.log('[auth jwt] token after:', token);
       return token;
     },
     session({ session, token }) {
+      // TEMP DEBUG - remove once the missing-email issue is found
+      console.log('[auth session] token:', token, 'session.user before:', session.user);
       // Just identity - org/role/client-access resolved live, see server.ts.
       session.user.cognitoSub = token.cognitoSub as string | undefined;
+      console.log('[auth session] session.user after:', session.user);
       return session;
     },
   },
