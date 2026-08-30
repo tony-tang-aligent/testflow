@@ -110,9 +110,16 @@ export class FlowBuilderStack extends cdk.Stack {
     const draftFn = new lambda.NodejsFunction(this, 'FlowDraftFn', {
       entry: path.join(__dirname, '../api/handlers/flowDrafts.ts'),
       runtime: Runtime.NODEJS_20_X,
-      environment: { FLOW_DRAFT_TABLE_NAME: flowDraftTable.tableName },
+      environment: {
+        FLOW_DRAFT_TABLE_NAME: flowDraftTable.tableName,
+        // Needed so DELETE can check whether this draft is the one
+        // currently published for its document type, and refuse rather
+        // than silently orphaning a live state machine.
+        PUBLISHED_FLOW_TABLE_NAME: publishedFlowTable.tableName,
+      },
     });
     flowDraftTable.grantReadWriteData(draftFn);
+    publishedFlowTable.grantReadData(draftFn);
 
     // Deliberately public, unlike the old validator's API - the flow-builder
     // canvas (apps/web/app/flow-builder/**) calls this directly from the
@@ -138,6 +145,7 @@ export class FlowBuilderStack extends cdk.Stack {
           apigwv2.CorsHttpMethod.GET,
           apigwv2.CorsHttpMethod.POST,
           apigwv2.CorsHttpMethod.PUT,
+          apigwv2.CorsHttpMethod.DELETE,
           apigwv2.CorsHttpMethod.OPTIONS,
         ],
         allowHeaders: ['content-type'],
@@ -151,7 +159,7 @@ export class FlowBuilderStack extends cdk.Stack {
     });
     httpApi.addRoutes({
       path: '/flow-drafts/{flowId}',
-      methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.PUT],
+      methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.PUT, apigwv2.HttpMethod.DELETE],
       integration: new integrations.HttpLambdaIntegration('DraftItemIntegration', draftFn),
     });
     httpApi.addRoutes({
