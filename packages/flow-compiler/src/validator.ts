@@ -41,11 +41,26 @@ const noActionNodesInsideIteration: GraphValidationRule = {
     for (const nodeId of insideIteration) {
       const node = graph.nodes.find((n) => n.id === nodeId)!;
       const def = getNodeType(node.type);
-      if (def.category === 'action') {
+      // Not every action node, just the ones that structurally can't have a
+      // continuation - canHaveOutput already distinguishes this
+      // meaningfully: httpCall is the ONE action type with canHaveOutput
+      // true, deliberately designed to feed its result into a following
+      // check ("call the API, then validate the response") - that's exactly
+      // the per-item data-enrichment shape a loop needs (e.g. look up each
+      // line item's product info by SKU), not the "runs once, notifies
+      // someone" shape emailAlert/slackAlert/lambdaInvoke all share
+      // (canHaveOutput: false, structurally terminal, can never have a
+      // continuation at all, loop or no loop). Blocking those still makes
+      // sense - N emails for N items is wrong, one email is right - but
+      // blocking httpCall the same way was rejecting a genuinely valid use
+      // case, not a real limitation of the underlying compiler/executor
+      // (which already handles action-node ResultPath merging correctly
+      // per-item, same mechanism a per-item check already relies on).
+      if (def.category === 'action' && !def.canHaveOutput) {
         violations.push({
           nodeId,
           ruleId: 'noActionNodesInsideIteration',
-          message: `"${def.label}" can't run inside a Repeat For Each - action nodes must run once per flow, not once per item.`,
+          message: `"${def.label}" can't run inside a Repeat For Each - it's structurally terminal (nothing can follow it), which only makes sense once per flow, not once per item. A node whose result feeds into a following check (like HTTP Request) can run inside a loop; this one can't.`,
         });
       }
     }
@@ -113,8 +128,8 @@ const noGraphCycles: GraphValidationRule = {
   check(graph) {
     const violations: GraphViolation[] = [];
     const WHITE = 0,
-      GRAY = 1,
-      BLACK = 2;
+        GRAY = 1,
+        BLACK = 2;
     const color = new Map(graph.nodes.map((n) => [n.id, WHITE]));
 
     function visit(nodeId: string): boolean {
