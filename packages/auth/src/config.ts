@@ -52,6 +52,17 @@ export const authConfig: NextAuthConfig = {
       authorization: {
         params: {
           identity_provider: 'AzureAD',
+          // Temporary, opt-in only (via env var, not hardcoded) - forces
+          // Azure AD to show its own credential prompt every time,
+          // regardless of any existing SSO session it's independently
+          // maintaining. "Sign out" only ever cleared THIS app's own
+          // session; Azure AD's own browser session is separate and
+          // persists, which is why sign-out -> sign-in silently re-signed
+          // in without a prompt - that's standard SSO behavior, not a bug.
+          // Leave this OFF for real usage - forcing a fresh prompt every
+          // time defeats the actual point of SSO. Set only for a demo,
+          // then unset it again afterward.
+          ...(process.env.gis === 'true' ? { prompt: 'login' } : {}),
         },
       },
     }),
