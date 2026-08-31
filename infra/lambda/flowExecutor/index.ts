@@ -18,11 +18,20 @@ import { resolveHttpRequest, HttpActionConfig } from '../flowBuilderShared/httpA
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const s3 = new S3Client({});
+const ses = new SESClient({});
 const SUMMARY_TABLE = process.env.EXECUTION_SUMMARY_TABLE_NAME;
 const DETAIL_BUCKET = process.env.EXECUTION_DETAIL_BUCKET_NAME;
+// Must be a verified identity (email address or domain) in SES, in the SAME
+// region this Lambda runs in - SES verification is per-region. If the SES
+// account is still in sandbox mode (the default for new accounts), every
+// recipient also needs to be individually verified until production access
+// is requested - not something this code can detect or work around, a real
+// account-level setting to check separately.
+const SES_FROM_ADDRESS = process.env.SES_FROM_ADDRESS;
 
 interface ExecutorEvent {
   nodeId: string;
@@ -96,13 +105,37 @@ function runCheck(config: Record<string, unknown>, item: Record<string, unknown>
 
 async function runAction(nodeType: string, config: Record<string, unknown>, item: Record<string, unknown>) {
   switch (nodeType) {
-    case 'emailAlert':
-      console.log('emailAlert (stub):', {
-        to: config.recipients,
-        subject: interpolate(String(config.subject ?? ''), item),
-        body: interpolate(String(config.body ?? ''), item),
-      });
-      return { acknowledged: true };
+    case 'emailAlert': {
+      if (!SES_FROM_ADDRESS) throw new Error('SES_FROM_ADDRESS is not configured');
+      const subject = interpolate(String(config.subject ?? ''), item);
+      const body = interpolate(String(config.body ?? ''), item);
+      // Plain-text recipients field, comma-separated - not a real list-
+      // builder UI, so this needs to split/trim itself rather than assume
+      // one address.
+      const toAddresses = String(config.recipients ?? '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      if (toAddresses.length === 0) throw new Error('emailAlert has no recipients configured');
+
+      // Deliberately no try/catch swallowing this - a failed send should
+      // fail this Step Functions task, not silently report
+      // {acknowledged: true} the way the stub always did regardless of
+      // whether anything actually went out. This node is terminal
+      // specifically to notify someone; a notification that silently never
+      // sent is worse than a visibly failed execution.
+      await ses.send(
+          new SendEmailCommand({
+            Source: SES_FROM_ADDRESS,
+            Destination: { ToAddresses: toAddresses },
+            Message: {
+              Subject: { Data: subject },
+              Body: { Text: { Data: body } },
+            },
+          }),
+      );
+      return { acknowledged: true, to: toAddresses };
+    }
     case 'slackAlert':
       console.log('slackAlert (stub):', {
         channel: config.channel,
@@ -174,6 +207,7 @@ export const handler = async (event: ExecutorEvent) => {
     case 'errorAggregator': {
       const state = item as {
         documentType?: string;
+        flowId?: string;
         payload?: unknown;
         // Each iteration's result is the WHOLE item merged with checkResult
         // (ResultPath: '$.checkResult' merges into the item, it doesn't
@@ -216,6 +250,13 @@ export const handler = async (event: ExecutorEvent) => {
                 TableName: SUMMARY_TABLE,
                 Item: {
                   documentType: state.documentType ?? 'unknown',
+                  // Not a key attribute - the table stays hash=documentType so
+                  // the aggregated /logs page's existing "all executions for
+                  // this document type" query keeps working unchanged. This
+                  // is purely what lets the PER-FLOW history page filter down
+                  // to just this flow's own runs, via flowExecutionHistory's
+                  // flowId-index GSI.
+                  flowId: state.flowId,
                   evaluatedAt,
                   executionId: event.executionId,
                   status: result.status,

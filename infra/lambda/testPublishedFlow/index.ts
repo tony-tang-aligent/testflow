@@ -59,20 +59,27 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
     if (!body.documentType) return json(400, { message: 'documentType required' });
 
     const published = await ddb.send(
-      new GetCommand({ TableName: FLOW_TABLE, Key: { documentType: body.documentType } }),
+        new GetCommand({ TableName: FLOW_TABLE, Key: { documentType: body.documentType } }),
     );
     if (!published.Item?.stateMachineArn) {
       return json(404, { message: `No published flow for document type "${body.documentType}" yet - publish it first.` });
     }
 
     const result = await sfnClient.send(
-      new StartExecutionCommand({
-        stateMachineArn: published.Item.stateMachineArn,
-        // documentType included now, not just payload - errorAggregator
-        // needs it to know which document type's history table row to
-        // write (see flowExecutor's errorAggregator case).
-        input: JSON.stringify({ documentType: body.documentType, payload: body.payload ?? {} }),
-      }),
+        new StartExecutionCommand({
+          stateMachineArn: published.Item.stateMachineArn,
+          input: JSON.stringify({
+            documentType: body.documentType,
+            // Needed so errorAggregator can tag the persisted summary with
+            // WHICH published flow actually produced it - without this,
+            // FlowExecutionSummary was only keyed by documentType, so if a
+            // different flow got published later for the same document type,
+            // the per-flow history page would show BOTH flows' executions
+            // mixed together with no way to tell them apart.
+            flowId: published.Item.flowId,
+            payload: body.payload ?? {},
+          }),
+        }),
     );
     return json(200, { executionArn: result.executionArn });
   }

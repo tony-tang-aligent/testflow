@@ -187,12 +187,70 @@ const noBypassingContainerEdges: GraphValidationRule = {
   },
 };
 
+/** Every check's output needs to actually get collected somewhere, or it's
+ * silently discarded - this is exactly the bug reported live: a
+ * fieldValidator with zero outgoing edges compiles to a Task that just
+ * ends the execution right there (no error, no crash - the compiler
+ * correctly treats "no continue/fail edge" as "this chain is done"), and
+ * since errorAggregator is the ONLY place that persists execution history,
+ * an execution that never reaches it produces no record at all. Silent,
+ * confusing, and previously nothing caught it before Test Flow ran and
+ * quietly did nothing.
+ *
+ * Works by reverse-BFS from every errorAggregator node, following edges
+ * backward, to find every node that CAN reach one - this is graph-edge
+ * reachability, not compiled-ASL reachability, so it works correctly for
+ * checks inside a loop too: the edge from a check to errorAggregator still
+ * exists in the graph data even though the compiler resolves that specific
+ * transition differently once containment is involved (see
+ * resolveNext/repeatForEach's resumeEdge in compiler.ts). */
+function findNodesReachingAggregator(graph: FlowGraph): Set<string> {
+  const aggregatorIds = graph.nodes.filter((n) => n.type === 'errorAggregator').map((n) => n.id);
+  const reverseAdjacency = new Map<string, string[]>();
+  for (const edge of graph.edges) {
+    if (!reverseAdjacency.has(edge.target)) reverseAdjacency.set(edge.target, []);
+    reverseAdjacency.get(edge.target)!.push(edge.source);
+  }
+  const canReach = new Set<string>(aggregatorIds);
+  const queue = [...aggregatorIds];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const source of reverseAdjacency.get(current) ?? []) {
+      if (!canReach.has(source)) {
+        canReach.add(source);
+        queue.push(source);
+      }
+    }
+  }
+  return canReach;
+}
+
+const everyCheckReachesAggregator: GraphValidationRule = {
+  id: 'everyCheckReachesAggregator',
+  check(graph) {
+    const canReach = findNodesReachingAggregator(graph);
+    const violations: GraphViolation[] = [];
+    for (const node of graph.nodes) {
+      const def = getNodeType(node.type);
+      if (def.category === 'check' && !canReach.has(node.id)) {
+        violations.push({
+          nodeId: node.id,
+          ruleId: 'everyCheckReachesAggregator',
+          message: `"${def.label}" has no path (direct or through other nodes) that leads to an Error Aggregator - its result would never be collected, and the execution would silently end here with no record of what happened. Connect it, or whatever it eventually leads to, to an Error Aggregator.`,
+        });
+      }
+    }
+    return violations;
+  },
+};
+
 export const VALIDATION_RULES: GraphValidationRule[] = [
   noActionNodesInsideIteration,
   noActionNodeOutput,
   noDanglingEdges,
   noDanglingParent,
   noBypassingContainerEdges,
+  everyCheckReachesAggregator,
   noGraphCycles,
 ];
 
