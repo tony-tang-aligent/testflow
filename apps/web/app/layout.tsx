@@ -21,7 +21,10 @@ import { isDevBypassActive } from '@workspace/auth/devBypass';
 import { Sidebar } from '../components/Sidebar';
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // TEMP DEBUG - remove once the missing-logout-button issue is found
+  console.log('[layout] isDevBypassActive():', isDevBypassActive());
   const session = isDevBypassActive() ? null : await auth();
+  console.log('[layout] session:', session);
 
   let isPlatformAdmin = false;
   let isOrgAdmin = false;
@@ -39,17 +42,38 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html className="dark" lang="en">
+      <html className="dark" lang="en">
+      <head>
+        {/* Explicit <link> tags, not a CSS @import in globals.css - that
+            worked fine under webpack, but broke silently under Turbopack
+            (stable-by-default as of Next.js 16), rendering every Material
+            Symbols icon as its literal ligature text ("account_tree",
+            "verified", etc.) instead of the actual glyph. This is pure
+            HTML, resolved by the browser directly, independent of whatever
+            Turbopack's CSS @import handling is doing - matches how the
+            original design mockups this whole UI was built from loaded
+            fonts in the first place. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        />
+      </head>
       <body className="flex h-screen overflow-hidden bg-background text-on-background font-body-base text-body-base antialiased">
-        <Sidebar
+      <Sidebar
           isOrgAdmin={isOrgAdmin}
           isPlatformAdmin={isPlatformAdmin}
           userEmail={session?.user?.email}
           onSignOut={handleSignOut}
-        />
+      />
 
-        <main className="min-h-0 flex-1 overflow-y-auto bg-background">{children}</main>
+      <main className="min-h-0 flex-1 overflow-y-auto bg-background">{children}</main>
       </body>
-    </html>
+      </html>
   );
 }
