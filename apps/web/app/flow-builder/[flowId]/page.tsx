@@ -21,7 +21,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import type { FlowGraph, GraphViolation } from '@workspace/flow-compiler';
-import { getNodeType } from '@workspace/flow-compiler';
+import { getNodeType, validateGraph } from '@workspace/flow-compiler';
 import { flowBuilderApi } from '../../../lib/flowBuilderApi';
 import { NodePalette } from '../../../components/flow-builder/NodePalette';
 import { NodeConfigPanel } from '../../../components/flow-builder/NodeConfigPanel';
@@ -484,6 +484,26 @@ function CanvasInner() {
     setTimeout(() => setStatusMessage(null), 2500);
   }
 
+  // Runs the exact same rules publish already enforces (compile() calls
+  // validateGraph() first, before compiling anything) - this is that same
+  // check, exposed as its own button, entirely client-side. validator.ts
+  // has zero server-only dependencies, so this needs no round trip at all -
+  // instant feedback while still editing, not just a possible surprise at
+  // publish time.
+  function handleValidate() {
+    setStatusMessage(null);
+    const foundViolations = validateGraph(toGraph());
+    setViolations(foundViolations);
+    setStatusMessage(
+        foundViolations.length === 0
+            ? { type: 'success', text: 'No issues found.' }
+            : {
+              type: 'error',
+              text: `${foundViolations.length} issue${foundViolations.length === 1 ? '' : 's'} - see highlighted nodes below.`,
+            },
+    );
+  }
+
   async function handlePublish() {
     setPublishing(true);
     setViolations([]);
@@ -583,6 +603,14 @@ function CanvasInner() {
             </Button>
             <Button onClick={handleSave} variant="outline" size="sm">
               Save draft
+            </Button>
+            <Button
+                onClick={handleValidate}
+                title="Checks the CURRENT canvas state, including unsaved changes - same rules Publish enforces, no network round trip"
+                variant="outline"
+                size="sm"
+            >
+              Validate
             </Button>
             <Button
                 onClick={handleTestFlow}
