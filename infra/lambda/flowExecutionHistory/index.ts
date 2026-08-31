@@ -50,14 +50,32 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
   }
 
   const limit = Number(event.queryStringParameters?.limit ?? 50);
-  const result = await ddb.send(
-    new QueryCommand({
-      TableName: SUMMARY_TABLE,
-      KeyConditionExpression: 'documentType = :dt',
-      ExpressionAttributeValues: { ':dt': documentType },
-      ScanIndexForward: false, // most recent evaluatedAt first
-      Limit: limit,
-    }),
-  );
+  const flowId = event.queryStringParameters?.flowId;
+  // Querying the flowId-index directly, not documentType + a
+  // FilterExpression - the previous approach could under-return results,
+  // since DynamoDB applies Limit BEFORE filtering, not after. If a
+  // different flow (same document type) had been tested more recently,
+  // this flow's own older executions could get scanned past entirely. This
+  // index makes Limit apply to exactly the rows that matter.
+  const result = flowId
+    ? await ddb.send(
+        new QueryCommand({
+          TableName: SUMMARY_TABLE,
+          IndexName: 'flowId-index',
+          KeyConditionExpression: 'flowId = :fid',
+          ExpressionAttributeValues: { ':fid': flowId },
+          ScanIndexForward: false,
+          Limit: limit,
+        }),
+      )
+    : await ddb.send(
+        new QueryCommand({
+          TableName: SUMMARY_TABLE,
+          KeyConditionExpression: 'documentType = :dt',
+          ExpressionAttributeValues: { ':dt': documentType },
+          ScanIndexForward: false, // most recent evaluatedAt first
+          Limit: limit,
+        }),
+      );
   return json(200, result.Items ?? []);
 };

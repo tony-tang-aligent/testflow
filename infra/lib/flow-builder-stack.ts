@@ -51,6 +51,26 @@ export class FlowBuilderStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       pointInTimeRecovery: true,
     });
+    // The actual fix for the Limit-before-FilterExpression problem: querying
+    // by documentType then filtering client-side (or via FilterExpression)
+    // could under-return a specific flow's executions if a DIFFERENT flow
+    // for the same document type had been tested more recently - DynamoDB
+    // applies Limit before the filter, not after, so this flow's own older
+    // rows could get scanned past. Querying THIS index directly by flowId
+    // means Limit applies to exactly the rows that matter, no filtering
+    // needed. ALL projection, not KEYS_ONLY - the summary item is small
+    // (payload/violations live in S3, not here), so projecting everything
+    // avoids a second round-trip back to the main table after the GSI
+    // query. GSIs are eventually consistent, not strongly consistent like
+    // the main table can be - a write could take a moment to appear here,
+    // practically negligible for this use case (nobody's polling this
+    // milliseconds after a test run completes).
+    executionSummaryTable.addGlobalSecondaryIndex({
+      indexName: 'flowId-index',
+      partitionKey: { name: 'flowId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'evaluatedAt', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
 
     const executionDetailBucket = new s3.Bucket(this, 'FlowExecutionDetail', {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
@@ -66,6 +86,14 @@ export class FlowBuilderStack extends cdk.Stack {
       environment: {
         EXECUTION_SUMMARY_TABLE_NAME: executionSummaryTable.tableName,
         EXECUTION_DETAIL_BUCKET_NAME: executionDetailBucket.bucketName,
+        // Must be a verified SES identity (email address or domain) in THIS
+        // region - set via shell env var at `cdk deploy` time
+        // (SES_FROM_ADDRESS=alerts@yourdomain.com cdk deploy FlowBuilder),
+        // not hardcoded here, since it's a real operational value this repo
+        // shouldn't need to know. No fallback string - emailAlert throws
+        // clearly if this was never set, rather than silently try to send
+        // from a placeholder address that was never verified.
+        SES_FROM_ADDRESS: process.env.SES_FROM_ADDRESS ?? '',
       },
     });
     // The HTTP action node's auth support (API Key/Bearer/Basic) reads a
@@ -76,6 +104,16 @@ export class FlowBuilderStack extends cdk.Stack {
       new iam.PolicyStatement({
         actions: ['secretsmanager:GetSecretValue'],
         resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:flow-builder-secrets/*`],
+      }),
+    );
+    // No resource-level restriction on SES sending identities - SES itself
+    // already refuses to send from any identity that isn't verified in this
+    // account/region, so scoping this further wouldn't add real protection,
+    // just friction the moment a new sending identity gets verified.
+    flowExecutorFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['ses:SendEmail', 'ses:SendRawEmail'],
+        resources: ['*'],
       }),
     );
     executionSummaryTable.grantWriteData(flowExecutorFn);
